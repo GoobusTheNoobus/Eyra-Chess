@@ -348,7 +348,7 @@ Bitboard GenerateBlocker (int index, Bitboard mask) {
     int bit_num = 0;
 
     while (mask) {
-        int square = popcount(mask);
+        int square = ctz(mask);
 
         if (index & (1 << bit_num)) {
             blockers |= 1ULL << square;
