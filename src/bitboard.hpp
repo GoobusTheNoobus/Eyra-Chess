@@ -12,6 +12,16 @@
 #define popcount(x) std::popcount(x)
 #endif
 
+#ifdef _MSC_VER
+#include <intrin.h>
+#define ctz(x) _tzcnt_u64(x)  // MSVC intrinsic for counting trailing zeros
+#elif defined(__GNUC__) || defined(__clang__)
+#define ctz(x) __builtin_ctzll(x)  // GCC/Clang built-in function for 64-bit
+#else
+#include <bit>
+#define ctz(x) std::countr_zero(x)  // C++20 std::countr_zero (available in C++20 and above)
+#endif
+
 namespace Eyra::Bitboards {
 
 void init();
