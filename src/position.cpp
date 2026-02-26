@@ -1,71 +1,48 @@
 #include "position.hpp"
 
-namespace Beans {
+namespace Eyra {
 
 Position::Position() {
     // Set starting position
     ParseFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 }
 
-Position::Position(std::string fen) {
+Position::Position(std::string_view fen) {
     ParseFEN(fen);
 }
 
+// Gets a certain piece's bitboard
 Bitboard Position::GetBitboard(Piece piece) const {
     return bitboards[piece];
+}
+
+Bitboard Position::GetBitboard(PieceType pt, Color color) const {
+    return bitboards[MakePiece(pt, color)];
 }
 
 Piece Position::GetPiece (Square square) const {
     return pieces[square];
 }
 
-void Position::ClearPosition() {
-    for (int i = 0; i < 64; ++i) {
-        pieces[i] = NO_PIECE;
-    }
-
-    for (int i = 0; i < 12; ++i) {
-        bitboards[i] = 0ULL;
-    }
-
-    color_bitboards[0] = 0ULL;
-    color_bitboards[1] = 0ULL;
-    occupancy = 0ULL;
-
-    castling_rights = 0;
-    ep_square = NO_SQUARE;
-    rule_fifty = 0;
-    side_to_move = WHITE;
+Color Position::SideToMove () const {
+    return side_to_move;
 }
 
-void Position::UpdateOccupancy() {
-    color_bitboards[WHITE] = GetBitboard(W_PAWN) | GetBitboard(W_KNIGHT) | GetBitboard(W_BISHOP) | GetBitboard(W_ROOK) | GetBitboard(W_QUEEN) | GetBitboard(W_KING);
-    color_bitboards[BLACK] = GetBitboard(B_PAWN) | GetBitboard(B_KNIGHT) | GetBitboard(B_BISHOP) | GetBitboard(B_ROOK) | GetBitboard(B_QUEEN) | GetBitboard(B_KING);
-
-    occupancy = color_bitboards[WHITE] | color_bitboards[BLACK];
+CastlingRights Position::GetCastlingRights () const {
+    return castling_rights;
 }
 
-void Position::ClearSquare (Square square) {
-    if (GetPiece(square) == NO_PIECE) return;
-
-    bitboards[GetPiece(square)] &= ~(1ULL << square);
-    pieces[square] = NO_PIECE;
+Square Position::GetEPSquare () const {
+    return ep_square;
 }
 
-void Position::SetSquare (Square square, Piece piece) {
-    if (piece == NO_PIECE) {
-        ClearSquare(square);
-        return;
-    }
-
-    pieces[square] = piece;
-
-    bitboards[piece] |= 1ULL << square;
-
-    UpdateOccupancy();
+int Position::GetRuleFifty () const {
+    return rule_fifty;
 }
 
-void Position::ParseFEN(std::string fen) {
+
+// Parses a Forsyth-Edwards Notation string
+void Position::ParseFEN(std::string_view fen) {
     // Start from empty board
     ClearPosition();
 
@@ -122,11 +99,11 @@ void Position::ParseFEN(std::string fen) {
 
     assert (rank == 0 && file == 8);
 
-    fen = fen.substr(i + 1);
+    fen.remove_prefix(i + 1);
 
     side_to_move = (fen[0] == 'w') ? WHITE : BLACK;
 
-    fen = fen.substr(2);
+    fen.remove_prefix(2);
 
     size_t j = 0;
     while (j < fen.size() && fen[j] != ' ') {
@@ -150,23 +127,24 @@ void Position::ParseFEN(std::string fen) {
         ++j;
     }
 
-    fen = fen.substr(j + 1);
+    fen.remove_prefix(j + 1);
 
     if (fen[0] == '-') {
         ep_square = NO_SQUARE;
-        fen = fen.substr(2);
+        fen.remove_prefix(2);
     } else {
         char file_char = fen[0];
         char rank_char = fen[1];
         ep_square = Square((rank_char - '1') << 3 | (file_char - 'a'));
         
-        fen = fen.substr(3);
+        fen.remove_prefix(3);
     }
 
     size_t space = fen.find(' ');
     rule_fifty = std::stoi(std::string(fen.substr(0, space)));
-    fen = fen.substr(space + 1);
+    fen.remove_prefix(space + 1);
 }
+
 
 std::string Position::ToString() const {
 
@@ -195,4 +173,54 @@ std::string Position::ToString() const {
     return string.str();
 }
 
-} // namespace Beans
+void Position::ClearPosition() {
+    for (int i = 0; i < 64; ++i) {
+        pieces[i] = NO_PIECE;
+    }
+
+    for (int i = 0; i < 12; ++i) {
+        bitboards[i] = 0ULL;
+    }
+
+    color_bitboards[0] = 0ULL;
+    color_bitboards[1] = 0ULL;
+    occupancy = 0ULL;
+
+    castling_rights = 0;
+    ep_square = NO_SQUARE;
+    rule_fifty = 0;
+    side_to_move = WHITE;
+}
+
+void Position::UpdateOccupancy() {
+    color_bitboards[WHITE] = GetBitboard(W_PAWN) | GetBitboard(W_KNIGHT) | GetBitboard(W_BISHOP) | GetBitboard(W_ROOK) | GetBitboard(W_QUEEN) | GetBitboard(W_KING);
+    color_bitboards[BLACK] = GetBitboard(B_PAWN) | GetBitboard(B_KNIGHT) | GetBitboard(B_BISHOP) | GetBitboard(B_ROOK) | GetBitboard(B_QUEEN) | GetBitboard(B_KING);
+
+    occupancy = color_bitboards[WHITE] | color_bitboards[BLACK];
+}
+
+void Position::ClearSquare (Square square) {
+    if (GetPiece(square) == NO_PIECE) return;
+
+    bitboards[GetPiece(square)] &= ~(1ULL << square);
+    pieces[square] = NO_PIECE;
+}
+
+void Position::SetSquare (Square square, Piece piece) {
+    if (piece == NO_PIECE) {
+        ClearSquare(square);
+        return;
+    }
+
+    pieces[square] = piece;
+
+    bitboards[piece] |= 1ULL << square;
+
+    UpdateOccupancy();
+}
+
+
+
+
+
+} // namespace Eyra

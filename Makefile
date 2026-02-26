@@ -4,7 +4,7 @@ CXXFLAGS = -std=c++20 -O3 -Wall -Wextra -Iinclude
 SRC = $(wildcard src/*.cpp)
 OBJ = $(SRC:.cpp=.o)
 
-TARGET = beans
+TARGET = eyra
 
 all: $(TARGET)
 

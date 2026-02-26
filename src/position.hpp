@@ -4,36 +4,35 @@
 #include <cassert>
 #include <stdexcept>
 #include <sstream>
+#include <string_view>
 #include "type.hpp"
 
-namespace Beans {
+namespace Eyra {
     
 class Position {
  public:
     // Constructors
     Position();
-    Position(std::string fen);
+    Position(std::string_view fen);
 
     
 
     // Lookups
     Bitboard GetBitboard(Piece piece) const;
-    Bitboard GetBitboard(PieceType piece, Color color) const;
+    Bitboard GetBitboard(PieceType pt, Color color) const;
     Piece GetPiece(Square square) const;
     Color SideToMove() const;
     CastlingRights GetCastlingRights () const;
     Square GetEPSquare() const;
     int GetRuleFifty() const;
 
-    void ParseFEN(std::string fen);
-
-    // Editting Functions are not needed publicly
-
-
+    void ParseFEN(std::string_view fen);
     std::string ToString() const;
 
+    void MakeMove (Move move);
+    void UndoMove ();
 
-    bool HasMatingMaterial() const;
+    
 
  private:
     // Board and Pieces
@@ -48,6 +47,9 @@ class Position {
     Square ep_square;
     int rule_fifty;
 
+    // Game History
+    MoveList move_history;
+
     // Editting Functions
     void ClearPosition();
     void UpdateOccupancy();
@@ -57,4 +59,4 @@ class Position {
 
 };
 
-} // namespace Beans
+} // namespace Eyra

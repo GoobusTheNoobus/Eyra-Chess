@@ -2,14 +2,13 @@
 
 #include "misc.hpp"
 #include "position.hpp"
+#include "bitboard.hpp"
+#include "type.hpp"
 
 int main() {
-    std::cout << Beans::ENGINE_NAME << Beans::ENGINE_VERSION << " by " << Beans::ENGINE_AUTHOR << std::endl;
+    std::cout << Eyra::ENGINE_NAME << Eyra::ENGINE_VERSION << " by " << Eyra::ENGINE_AUTHOR << std::endl;
     
-    Beans::Position pos("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
     
-
-    std::cout << pos.ToString();
 
     return 0;
 
