@@ -20,6 +20,8 @@ class Position {
     // Lookups
     Bitboard GetBitboard(Piece piece) const;
     Bitboard GetBitboard(PieceType pt, Color color) const;
+    Bitboard GetBitboard(Color color) const;
+    Bitboard GetOccupancy() const;
     Piece GetPiece(Square square) const;
     Color SideToMove() const;
     CastlingRights GetCastlingRights () const;

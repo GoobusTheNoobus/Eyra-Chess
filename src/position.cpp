@@ -20,6 +20,14 @@ Bitboard Position::GetBitboard(PieceType pt, Color color) const {
     return bitboards[MakePiece(pt, color)];
 }
 
+Bitboard Position::GetBitboard(Color color) const {
+    return color_bitboards[color];
+}
+
+Bitboard Position::GetOccupancy() const {
+    return occupancy;
+}
+
 Piece Position::GetPiece (Square square) const {
     return pieces[square];
 }

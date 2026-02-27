@@ -22,9 +22,12 @@
 #define ctz(x) std::countr_zero(x)  // C++20 std::countr_zero (available in C++20 and above)
 #endif
 
+
 namespace Eyra::Bitboards {
 
-void init();
+
+
+void Init();
 
 constexpr Bitboard rank1 = 0xFF;
 constexpr Bitboard rank2 = rank1 << 8;
@@ -48,8 +51,5 @@ Bitboard GetPawnAttacks   (Square square);
 Bitboard GetKnightAttacks (Square square);
 Bitboard GetKingAttacks   (Square square);
 
-
-void generate_bishop_mask (Square square);
-void generate_rook_mask (Square square);
 
 } // namespace Eyra::Bitboards

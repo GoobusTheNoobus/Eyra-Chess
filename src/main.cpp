@@ -1,15 +1,19 @@
 #include <iostream>
+#include <chrono>
 
 #include "misc.hpp"
 #include "position.hpp"
 #include "bitboard.hpp"
 #include "type.hpp"
 
-int main() {
-    std::cout << Eyra::ENGINE_NAME << Eyra::ENGINE_VERSION << " by " << Eyra::ENGINE_AUTHOR << std::endl;
-    
-    
+using namespace Eyra;
 
+int main() {
+    Bitboards::Init();
+    
+    std::cout << ENGINE_NAME << ENGINE_VERSION << " by " << ENGINE_AUTHOR << std::endl;
+    
+    
     return 0;
 
 }
