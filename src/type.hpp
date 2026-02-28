@@ -11,21 +11,7 @@ using Bitboard = uint64_t;
 using Move = uint32_t;
 using CastlingRights = uint8_t;
 
-struct MoveList {
-    Move moves[256];
-    int count = 0;
 
-    inline void push(Move move) { moves[count++] = move; }
-    inline Move pop() { return moves[--count]; }
-
-    Move operator[] (int i) const { return moves[i]; }
-
-    // Iteratable Support
-    inline Move* begin() { return moves; }
-    inline Move* end() { return moves + count; }
-    inline const Move* begin() const { return moves; }
-    inline const Move* end() const { return moves + count; }
-};
 
 // Enums 
 enum PieceType : uint8_t {
@@ -56,16 +42,17 @@ enum Square: uint8_t{
 };
 
 
-inline Color Opposite (Color c) { return (c == WHITE) ? BLACK : WHITE; }
-inline Color PieceColor (Piece piece) { return Color(piece / 6); }
-inline Piece MakePiece (PieceType pt, Color c) { return Piece(pt + 6 * c); }
+inline constexpr Color Opposite (Color c) { return (c == WHITE) ? BLACK : WHITE; }
+inline constexpr Color PieceColor (Piece piece) { return Color(piece / 6); }
+inline constexpr Piece MakePiece (PieceType pt, Color c) { return Piece(pt + 6 * c); }
 
-inline std::string square_to_str (Square square) {
+inline std::string SquareToString (Square square) {
     char file = 'a' + (square & 7);
     char rank = '1' + (square >> 3);
 
     return {file, rank};
 }
+
 
 // Operator Overloads
 inline Square& operator++(Square& s) { return s = Square(s + 1); }

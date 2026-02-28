@@ -151,6 +151,9 @@ void Position::ParseFEN(std::string_view fen) {
     size_t space = fen.find(' ');
     rule_fifty = std::stoi(std::string(fen.substr(0, space)));
     fen.remove_prefix(space + 1);
+
+
+    UpdateOccupancy();
 }
 
 
@@ -176,10 +179,12 @@ std::string Position::ToString() const {
     string << "\nSide to move: " << (side_to_move == WHITE ? "White": "Black") << "\n";
     string << "Castling rights: \n";
     string << ((castling_rights & 1) != 0 ? "White Kingside\n" : "") << ((castling_rights & 2) != 0 ? "White Queenside\n" : "") << ((castling_rights & 4) != 0 ? "Black Kingside\n" : "") << ((castling_rights & 8) != 0 ? "Black Queenside\n" : "") << "\n\n";   
-    string << "En Passant Square: " << (ep_square == NO_SQUARE ? "-" : square_to_str(ep_square)) << "\n";
+    string << "En Passant Square: " << (ep_square == NO_SQUARE ? "-" : SquareToString(ep_square)) << "\n";
     
     return string.str();
 }
+
+
 
 void Position::ClearPosition() {
     for (int i = 0; i < 64; ++i) {
@@ -224,7 +229,11 @@ void Position::SetSquare (Square square, Piece piece) {
 
     bitboards[piece] |= 1ULL << square;
 
-    UpdateOccupancy();
+    
+}
+
+bool Position::IsAttacked (Square square, Color c) {
+
 }
 
 

@@ -6,6 +6,7 @@
 #include <sstream>
 #include <string_view>
 #include "type.hpp"
+#include "move.hpp"
 
 namespace Eyra {
     
@@ -31,8 +32,12 @@ class Position {
     void ParseFEN(std::string_view fen);
     std::string ToString() const;
 
+    
+
     void MakeMove (Move move);
     void UndoMove ();
+
+    bool IsAttacked (Square square, Color c);
 
     
 
@@ -60,5 +65,11 @@ class Position {
     
 
 };
+
+inline std::ostream& operator<< (std::ostream& os, const Position& pos) {
+   os << pos.ToString();
+
+   return os;
+}
 
 } // namespace Eyra

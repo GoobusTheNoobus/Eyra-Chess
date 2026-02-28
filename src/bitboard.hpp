@@ -1,6 +1,7 @@
 #pragma once
 
 #include "type.hpp"
+#include <iomanip>
 
 #ifdef _MSC_VER
 #include <intrin.h>
@@ -46,7 +47,7 @@ Bitboard SquareBB (Square square);
 Bitboard GetRookAttacks   (Square square, Bitboard occupancy);
 Bitboard GetBishopAttacks (Square square, Bitboard occupancy);
 
-template <Color C>
+template <Color c>
 Bitboard GetPawnAttacks   (Square square);
 Bitboard GetKnightAttacks (Square square);
 Bitboard GetKingAttacks   (Square square);

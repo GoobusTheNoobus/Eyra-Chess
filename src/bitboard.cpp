@@ -7,23 +7,7 @@ using namespace Eyra;
 
 namespace {
 
-using Direction = std::pair<int, int>;
 
-// Direction Vectors: Deleting soon
-
-constexpr Direction knight_vec[8] = {
-    { 1,  2}, { 1, -2}, {-1,  2}, {-1, -2},
-    { 2,  1}, { 2, -1}, {-2,  1}, {-2, -1}
-};
-
-constexpr Direction king_vec[8] = {
-    {-1,  1}, {0,  1}, {1,  1},
-    {-1,  0},          {1,  0},
-    {-1, -1}, {0, -1}, {1, -1}
-};
-
-constexpr Direction wpawn_vec[2] = { {1,  1}, {1, -1} };
-constexpr Direction bpawn_vec[2] = { {-1, 1}, {-1,-1} };
 
 
 // Forward Declare functions
@@ -39,6 +23,36 @@ void PrecomputeBishop (Square square);
 void PrecomputeRook   (Square square);
 
 // Attack Tables
+
+Bitboard ComputeRookMask(Square square) {
+    Bitboard mask = 0ULL;
+    int rank = square >> 3;
+    int file = square & 7;
+
+    // North - exclude rank 8
+    for (int r = rank + 1; r <= 6; r++) mask |= 1ULL << (r << 3 | file);
+    // South - exclude rank 1
+    for (int r = rank - 1; r >= 1; r--) mask |= 1ULL << (r << 3 | file);
+    // East - exclude file H
+    for (int f = file + 1; f <= 6; f++) mask |= 1ULL << (rank << 3 | f);
+    // West - exclude file A
+    for (int f = file - 1; f >= 1; f--) mask |= 1ULL << (rank << 3 | f);
+
+    return mask;
+}
+
+Bitboard ComputeBishopMask(Square square) {
+    Bitboard mask = 0ULL;
+    int rank = square >> 3;
+    int file = square & 7;
+
+    for (int r = rank+1, f = file+1; r <= 6 && f <= 6; r++, f++) mask |= 1ULL << (r<<3|f);
+    for (int r = rank+1, f = file-1; r <= 6 && f >= 1; r++, f--) mask |= 1ULL << (r<<3|f);
+    for (int r = rank-1, f = file+1; r >= 1 && f <= 6; r--, f++) mask |= 1ULL << (r<<3|f);
+    for (int r = rank-1, f = file-1; r >= 1 && f >= 1; r--, f--) mask |= 1ULL << (r<<3|f);
+
+    return mask;
+}
 
 constexpr Bitboard knight_table[64] = {
     0x0000000000020400ULL, 0x0000000000050800ULL, 0x00000000000A1100ULL, 0x0000000000142200ULL,
@@ -174,25 +188,26 @@ constexpr Bitboard bishop_mask[64] = {
     0x0000284402000000ULL, 0x0000500804020000ULL, 0x0000201008040200ULL, 0x0000402010080400ULL,
     0x0002040810204000ULL, 0x0004081020400000ULL, 0x000A102040000000ULL, 0x0014224000000000ULL,
     0x0028440200000000ULL, 0x0050080402000000ULL, 0x0020100804020000ULL, 0x0040201008040200ULL,
+    
 };
 
 constexpr Bitboard rook_mask[64] = {
-    0x000101010101017EULL, 0x000202020202027CULL, 0x000404040404047AULL, 0x0008080808080876ULL,
-    0x001010101010106EULL, 0x002020202020205EULL, 0x004040404040403EULL, 0x008080808080807EULL,
-    0x0001010101017E00ULL, 0x0002020202027C00ULL, 0x0004040404047A00ULL, 0x0008080808087600ULL,
-    0x0010101010106E00ULL, 0x0020202020205E00ULL, 0x0040404040403E00ULL, 0x0080808080807E00ULL,
-    0x00010101017E0100ULL, 0x00020202027C0200ULL, 0x00040404047A0400ULL, 0x0008080808760800ULL,
-    0x0010101010106E00ULL, 0x0020202020205E00ULL, 0x0040404040403E00ULL, 0x0080808080807E00ULL,
-    0x000101017E010100ULL, 0x000202027C020200ULL, 0x000404047A040400ULL, 0x0008080876080800ULL,
-    0x0010101010106E00ULL, 0x0020202020205E00ULL, 0x0040404040403E00ULL, 0x0080808080807E00ULL,
-    0x0001017E01010100ULL, 0x0002027C02020200ULL, 0x0004047A04040400ULL, 0x0008087608080800ULL,
-    0x0010106E10101000ULL, 0x0020205E20202000ULL, 0x0040403E40404000ULL, 0x0080807E80808000ULL,
-    0x00017E0101010100ULL, 0x00027C0202020200ULL, 0x00047A0404040400ULL, 0x0008760808080800ULL,
-    0x00106E1010101000ULL, 0x00205E2020202000ULL, 0x00403E4040404000ULL, 0x00807E8080808000ULL,
-    0x007E010101010100ULL, 0x007C020202020200ULL, 0x007A040404040400ULL, 0x0076080808080800ULL,
-    0x006E101010101000ULL, 0x005E202020202000ULL, 0x003E404040404000ULL, 0x007E808080808000ULL,
-    0x7E01010101010100ULL, 0x7C02020202020200ULL, 0x7A04040404040400ULL, 0x7608080808080800ULL,
-    0x6E10101010101000ULL, 0x5E20202020202000ULL, 0x3E40404040404000ULL, 0x7E80808080808000ULL,
+    0x000101010101017EULL,0x000202020202027CULL,0x000404040404047AULL,0x0008080808080876ULL,
+    0x001010101010106EULL,0x002020202020205EULL,0x004040404040403EULL,0x008080808080807EULL,
+    0x0001010101017E00ULL,0x0002020202027C00ULL,0x0004040404047A00ULL,0x0008080808087600ULL,
+    0x0010101010106E00ULL,0x0020202020205E00ULL,0x0040404040403E00ULL,0x0080808080807E00ULL,
+    0x00010101017E0100ULL,0x00020202027C0200ULL,0x00040404047A0400ULL,0x0008080808760800ULL,
+    0x00101010106E1000ULL,0x00202020205E2000ULL,0x00404040403E4000ULL,0x00808080807E8000ULL,
+    0x000101017E010100ULL,0x000202027C020200ULL,0x000404047A040400ULL,0x0008080876080800ULL,
+    0x001010106E101000ULL,0x002020205E202000ULL,0x004040403E404000ULL,0x008080807E808000ULL,
+    0x0001017E01010100ULL,0x0002027C02020200ULL,0x0004047A04040400ULL,0x0008087608080800ULL,
+    0x0010106E10101000ULL,0x0020205E20202000ULL,0x0040403E40404000ULL,0x0080807E80808000ULL,
+    0x00017E0101010100ULL,0x00027C0202020200ULL,0x00047A0404040400ULL,0x0008760808080800ULL,
+    0x00106E1010101000ULL,0x00205E2020202000ULL,0x00403E4040404000ULL,0x00807E8080808000ULL,
+    0x007E010101010100ULL,0x007C020202020200ULL,0x007A040404040400ULL,0x0076080808080800ULL,
+    0x006E101010101000ULL,0x005E202020202000ULL,0x003E404040404000ULL,0x007E808080808000ULL,
+    0x7E01010101010100ULL,0x7C02020202020200ULL,0x7A04040404040400ULL,0x7608080808080800ULL,
+    0x6E10101010101000ULL,0x5E20202020202000ULL,0x3E40404040404000ULL,0x7E80808080808000ULL,
 };
 
 constexpr uint8_t bishop_relevancy[64] = {
@@ -438,6 +453,8 @@ void Init() {
     for (Square square = A1; square < 64; ++square) {
         PrecomputeBishop(square);
         PrecomputeRook(square);
+
+        // std::cout << "0x" << std::hex << std::uppercase << std::setw(16) << std::setfill('0') << ComputeRookMask(square) << "ULL," << (((square + 1) % 4 == 0) ? "\n" : "" );
         
         square_bb[square] = 1ULL << square;
     }
@@ -456,7 +473,7 @@ Bitboard GetBishopAttacks (Square square, Bitboard occupancy) {
     return bishop_table[square][HashBishop(square, occupancy)];
 }
 
-template<Color c>
+template <Color c>
 Bitboard GetPawnAttacks (Square square) {
     return pawn_table[c][square];
 }
@@ -469,8 +486,8 @@ Bitboard GetKingAttacks (Square square) {
     return king_table[square];
 }
 
-template Bitboard GetPawnAttacks<WHITE> (Square);
-template Bitboard GetPawnAttacks<BLACK> (Square);
-    
+
+template Bitboard GetPawnAttacks<WHITE>(Square);
+template Bitboard GetPawnAttacks<BLACK>(Square);
 } // namespace Eyra::Bitboards
 
