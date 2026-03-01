@@ -279,11 +279,27 @@ Bitboard square_bb[64];
 
 // There now here comes the fun part
 int HashBishop (Square square, Bitboard blockers) {
-    return ((blockers & bishop_mask[square]) * bishop_magic[square]) >> (64 - bishop_relevancy[square]);
+    #if defined(__BMI2__) && !defined(NO_PEXT)  
+    // PEXT Hashing which I dont think I have
+    int index = _pext_u64(blockers & bishop_mask[square], bishop_mask[square]);
+    return bishop_table[square][index];
+#else
+    // Magic fallback 
+    int index = ((blockers & bishop_mask[square]) * bishop_magic[square]) >> (64 - bishop_relevancy[square]);
+    return bishop_table[square][index];
+#endif
 }
 
 int HashRook (Square square, Bitboard blockers) {
-    return ((blockers & rook_mask[square]) * rook_magic[square]) >> (64 - rook_relevancy[square]);
+    #if defined(__BMI2__) && !defined(NO_PEXT)  
+    // PEXT Hashing which I dont think I have
+    int index = _pext_u64(blockers & rook_mask[square], rook_mask[square]);
+    return rook_table[square][index];
+#else
+    // Magic fallback 
+    int index = ((blockers & rook_mask[square]) * rook_magic[square]) >> (64 - rook_relevancy[square]);
+    return rook_table[square][index];
+#endif
 }
 
 Bitboard RaycastBishop (Square square, Bitboard blockers) {
@@ -475,6 +491,10 @@ Bitboard GetBishopAttacks (Square square, Bitboard occupancy) {
 
 template <Color c>
 Bitboard GetPawnAttacks (Square square) {
+    return pawn_table[c][square];
+}
+
+Bitboard GetPawnAttacks (Square square, Color c) {
     return pawn_table[c][square];
 }
 

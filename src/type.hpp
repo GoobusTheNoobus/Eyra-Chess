@@ -10,7 +10,7 @@ namespace Eyra {
 using Bitboard = uint64_t;
 using Move = uint32_t;
 using CastlingRights = uint8_t;
-
+using GameInfo = uint32_t;
 
 
 // Enums 

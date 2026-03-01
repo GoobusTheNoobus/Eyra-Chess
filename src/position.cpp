@@ -232,8 +232,30 @@ void Position::SetSquare (Square square, Piece piece) {
     
 }
 
-bool Position::IsAttacked (Square square, Color c) {
+void Position::MakeMove(Move move) {
+    move_history.push(move);
+    
+}
 
+// Use for checks and stuff
+bool Position::IsAttacked(Square square, Color c) {
+    // Knights first: cheapest
+    if (Bitboards::GetKnightAttacks(square) & GetBitboard(KNIGHT, c)) return true;
+
+    // Pawns
+    if (Bitboards::GetPawnAttacks(square, c) & GetBitboard(PAWN, c)) return true;
+
+    // Kings
+    if (Bitboards::GetKingAttacks(square) & GetBitboard(KING, c)) return true;
+
+    // Sliders 
+    Bitboard bishops_queens = GetBitboard(BISHOP, c) | GetBitboard(QUEEN, c);
+    if (Bitboards::GetBishopAttacks(square, occupancy) & bishops_queens) return true;
+
+    Bitboard rooks_queens = GetBitboard(ROOK, c) | GetBitboard(QUEEN, c);
+    if (Bitboards::GetRookAttacks(square, occupancy) & rooks_queens) return true;
+
+    return false;
 }
 
 

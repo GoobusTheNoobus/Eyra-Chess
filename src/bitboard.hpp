@@ -2,6 +2,7 @@
 
 #include "type.hpp"
 #include <iomanip>
+#include <immintrin.h>
 
 #ifdef _MSC_VER
 #include <intrin.h>
@@ -49,6 +50,7 @@ Bitboard GetBishopAttacks (Square square, Bitboard occupancy);
 
 template <Color c>
 Bitboard GetPawnAttacks   (Square square);
+Bitboard GetPawnAttacks   (Square square, Color c);
 Bitboard GetKnightAttacks (Square square);
 Bitboard GetKingAttacks   (Square square);
 

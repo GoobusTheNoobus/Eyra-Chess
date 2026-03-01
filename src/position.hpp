@@ -7,9 +7,20 @@
 #include <string_view>
 #include "type.hpp"
 #include "move.hpp"
+#include "bitboard.hpp"
+
+
 
 namespace Eyra {
-    
+   
+
+inline GameInfo PackGameInfo (CastlingRights rights, Square ep, int rule50) {
+   // En Passant Square uses 7 bits instead of 6 because it can be NO_SQUARE
+   return rights | (ep << 4) | (rule50 << 11);
+}
+
+
+
 class Position {
  public:
     // Constructors
