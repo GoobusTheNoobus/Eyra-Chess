@@ -281,24 +281,24 @@ Bitboard square_bb[64];
 int HashBishop (Square square, Bitboard blockers) {
     #if defined(__BMI2__) && !defined(NO_PEXT)  
     // PEXT Hashing which I dont think I have
-    int index = _pext_u64(blockers & bishop_mask[square], bishop_mask[square]);
-    return bishop_table[square][index];
+    int index = _pext_u64(blockers, bishop_mask[square]);
+    return index;
 #else
     // Magic fallback 
     int index = ((blockers & bishop_mask[square]) * bishop_magic[square]) >> (64 - bishop_relevancy[square]);
-    return bishop_table[square][index];
+    return index;
 #endif
 }
 
 int HashRook (Square square, Bitboard blockers) {
     #if defined(__BMI2__) && !defined(NO_PEXT)  
     // PEXT Hashing which I dont think I have
-    int index = _pext_u64(blockers & rook_mask[square], rook_mask[square]);
-    return rook_table[square][index];
+    int index = _pext_u64(blockers, rook_mask[square]);
+    return index;
 #else
     // Magic fallback 
     int index = ((blockers & rook_mask[square]) * rook_magic[square]) >> (64 - rook_relevancy[square]);
-    return rook_table[square][index];
+    return index;
 #endif
 }
 

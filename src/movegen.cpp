@@ -16,10 +16,7 @@ void GeneratePawnMoves(const Position& pos, MoveList& list) {
     constexpr bool is_white = us == WHITE;
 
     
-    constexpr Piece moving = MakePiece(PAWN, us);
-
-    
-    Bitboard pieces = pos.GetBitboard(moving);
+    Bitboard pieces = pos.GetBitboard(PAWN, us);
     Bitboard enemies = pos.GetBitboard(them);
     Bitboard occ = pos.GetOccupancy();
 
@@ -65,7 +62,7 @@ void GeneratePawnMoves(const Position& pos, MoveList& list) {
     while (single_normal) {
         int square = ctz(single_normal);
         single_normal &= single_normal - 1;
-        list.push(CreateNormalMove(Square(square - push_dir), Square(square), moving, NO_PIECE));
+        list.Push(CreateNormalMove(Square(square - push_dir), Square(square)));
 
         // std::cout << "Single Normal" <<MoveToString(CreateNormalMove(Square(square - push_dir), Square(square), moving, NO_PIECE)) << "\n";
     }
@@ -76,7 +73,7 @@ void GeneratePawnMoves(const Position& pos, MoveList& list) {
         int square = ctz(double_push);
         double_push &= double_push - 1;
 
-        list.push(CreateDoublePush(Square(square - push_dir * 2), Square(square), moving));
+        list.Push(CreateDoublePush(Square(square - push_dir * 2), Square(square)));
     }
 
 
@@ -84,7 +81,7 @@ void GeneratePawnMoves(const Position& pos, MoveList& list) {
     while (left_capture_normal) {
         int square = ctz(left_capture_normal);
         left_capture_normal &= left_capture_normal - 1;
-        list.push(CreateNormalMove(Square(square - left_capture_dir), Square(square), moving, pos.GetPiece(Square(square))));
+        list.Push(CreateNormalMove(Square(square - left_capture_dir), Square(square)));
     }
 
     
@@ -92,37 +89,37 @@ void GeneratePawnMoves(const Position& pos, MoveList& list) {
     while (right_capture_normal) {
         int square = ctz(right_capture_normal);
         right_capture_normal &= right_capture_normal - 1;
-        list.push(CreateNormalMove(Square(square - right_capture_dir), Square(square), moving, pos.GetPiece(Square(square))));
+        list.Push(CreateNormalMove(Square(square - right_capture_dir), Square(square)));
     }
 
     while (single_promo) {
         int square = ctz(single_promo);
         single_promo &= single_promo - 1;
-        Move base = CreateNormalMove(Square(square - push_dir), Square(square), moving, NO_PIECE);
-        list.push(CreatePromoMove<QUEEN>(base));
-        list.push(CreatePromoMove<KNIGHT>(base));
-        list.push(CreatePromoMove<ROOK>(base));
-        list.push(CreatePromoMove<BISHOP>(base));
+        Move base = CreateNormalMove(Square(square - push_dir), Square(square));
+        list.Push(CreatePromoMove<QUEEN>(base));
+        list.Push(CreatePromoMove<KNIGHT>(base));
+        list.Push(CreatePromoMove<ROOK>(base));
+        list.Push(CreatePromoMove<BISHOP>(base));
     }
 
     while (left_capture_promo) {
         int square = ctz(left_capture_promo);
         left_capture_promo &= left_capture_promo - 1;
-        Move base = CreateNormalMove(Square(square - left_capture_dir), Square(square), moving, pos.GetPiece(Square(square)));
-        list.push(CreatePromoMove<QUEEN>(base));
-        list.push(CreatePromoMove<KNIGHT>(base));
-        list.push(CreatePromoMove<ROOK>(base));
-        list.push(CreatePromoMove<BISHOP>(base));
+        Move base = CreateNormalMove(Square(square - left_capture_dir), Square(square));
+        list.Push(CreatePromoMove<QUEEN>(base));
+        list.Push(CreatePromoMove<KNIGHT>(base));
+        list.Push(CreatePromoMove<ROOK>(base));
+        list.Push(CreatePromoMove<BISHOP>(base));
     }
 
     while (right_capture_promo) {
         int square = ctz(right_capture_promo);
         right_capture_promo &= right_capture_promo - 1;
-        Move base = CreateNormalMove(Square(square - right_capture_dir), Square(square), moving, pos.GetPiece(Square(square)));
-        list.push(CreatePromoMove<QUEEN>(base));
-        list.push(CreatePromoMove<KNIGHT>(base));
-        list.push(CreatePromoMove<ROOK>(base));
-        list.push(CreatePromoMove<BISHOP>(base));
+        Move base = CreateNormalMove(Square(square - right_capture_dir), Square(square));
+        list.Push(CreatePromoMove<QUEEN>(base));
+        list.Push(CreatePromoMove<KNIGHT>(base));
+        list.Push(CreatePromoMove<ROOK>(base));
+        list.Push(CreatePromoMove<BISHOP>(base));
     }
 
     if (ep != NO_SQUARE) {
@@ -132,7 +129,7 @@ void GeneratePawnMoves(const Position& pos, MoveList& list) {
         while (ep_bb) {
             int square = ctz(ep_bb);
             ep_bb &= ep_bb - 1;
-            list.push(CreateEnPassant(Square(square), ep, moving, is_white ? B_PAWN : W_PAWN));
+            list.Push(CreateEnPassant(Square(square), ep));
         }
     }
 
@@ -147,7 +144,6 @@ void GeneratePieceMoves(const Position& pos, MoveList& list) {
 
     const Bitboard friendlies = pos.GetBitboard(us);
     const Bitboard occ = pos.GetOccupancy();
-    const Piece moving = MakePiece(pt, us);
 
     Bitboard pieces = pos.GetBitboard(pt, us);
 
@@ -167,10 +163,31 @@ void GeneratePieceMoves(const Position& pos, MoveList& list) {
         while (attacks) {
             Square to = Square(ctz(attacks));
             attacks &= attacks - 1;
-            list.push(CreateNormalMove(from, to, moving, pos.GetPiece(to)));
+            list.Push(CreateNormalMove(from, to));
         }
     }
-    // TO-DO: Castling
+    
+    
+    if (pt == KING) {
+        if (us == WHITE) {
+            if (pos.CanCastleKingside()) {
+                
+                list.Push(CreateCastling(E1, G1));
+            } if (pos.CanCastleQueenside()) {
+                list.Push(CreateCastling(E1, C1));
+            }
+        } 
+        if (us == BLACK) {
+            if (pos.CanCastleKingside()) {
+                list.Push(CreateCastling(E8, G8));
+            } if (pos.CanCastleQueenside()) {
+                list.Push(CreateCastling(E8, C8));
+            }
+        }
+        
+    }
+    
+    
 }
 
 template <Color Us>

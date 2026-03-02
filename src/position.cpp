@@ -37,15 +37,15 @@ Color Position::SideToMove () const {
 }
 
 CastlingRights Position::GetCastlingRights () const {
-    return castling_rights;
+    return info.castling;
 }
 
 Square Position::GetEPSquare () const {
-    return ep_square;
+    return info.ep_square;
 }
 
 int Position::GetRuleFifty () const {
-    return rule_fifty;
+    return info.rule_50;
 }
 
 
@@ -117,16 +117,16 @@ void Position::ParseFEN(std::string_view fen) {
     while (j < fen.size() && fen[j] != ' ') {
         switch (fen[j]) {
         case 'K':
-            castling_rights |= 1;
+            info.castling |= 1;
             break;
         case 'Q':
-            castling_rights |= 2;
+            info.castling |= 2;
             break;
         case 'k':
-            castling_rights |= 4;
+            info.castling |= 4;
             break;
         case 'q':
-            castling_rights |= 8;
+            info.castling |= 8;
             break;
         
         default:
@@ -138,18 +138,18 @@ void Position::ParseFEN(std::string_view fen) {
     fen.remove_prefix(j + 1);
 
     if (fen[0] == '-') {
-        ep_square = NO_SQUARE;
+        info.ep_square = NO_SQUARE;
         fen.remove_prefix(2);
     } else {
         char file_char = fen[0];
         char rank_char = fen[1];
-        ep_square = Square((rank_char - '1') << 3 | (file_char - 'a'));
+        info.ep_square = Square((rank_char - '1') << 3 | (file_char - 'a'));
         
         fen.remove_prefix(3);
     }
 
     size_t space = fen.find(' ');
-    rule_fifty = std::stoi(std::string(fen.substr(0, space)));
+    info.rule_50 = std::stoi(std::string(fen.substr(0, space)));
     fen.remove_prefix(space + 1);
 
 
@@ -178,8 +178,8 @@ std::string Position::ToString() const {
 
     string << "\nSide to move: " << (side_to_move == WHITE ? "White": "Black") << "\n";
     string << "Castling rights: \n";
-    string << ((castling_rights & 1) != 0 ? "White Kingside\n" : "") << ((castling_rights & 2) != 0 ? "White Queenside\n" : "") << ((castling_rights & 4) != 0 ? "Black Kingside\n" : "") << ((castling_rights & 8) != 0 ? "Black Queenside\n" : "") << "\n\n";   
-    string << "En Passant Square: " << (ep_square == NO_SQUARE ? "-" : SquareToString(ep_square)) << "\n";
+    string << ((info.castling & 1) != 0 ? "White Kingside\n" : "") << ((info.castling & 2) != 0 ? "White Queenside\n" : "") << ((info.castling & 4) != 0 ? "Black Kingside\n" : "") << ((info.castling & 8) != 0 ? "Black Queenside\n" : "") << "\n\n";   
+    string << "En Passant Square: " << (info.ep_square == NO_SQUARE ? "-" : SquareToString(info.ep_square)) << "\n";
     
     return string.str();
 }
@@ -199,9 +199,9 @@ void Position::ClearPosition() {
     color_bitboards[1] = 0ULL;
     occupancy = 0ULL;
 
-    castling_rights = 0;
-    ep_square = NO_SQUARE;
-    rule_fifty = 0;
+    info.castling = 0;
+    info.ep_square = NO_SQUARE;
+    info.rule_50 = 0;
     side_to_move = WHITE;
 }
 
@@ -233,12 +233,19 @@ void Position::SetSquare (Square square, Piece piece) {
 }
 
 void Position::MakeMove(Move move) {
-    move_history.push(move);
+    // Append all info before making move
+    move_history[counter] = move;
+    info_history[counter] = GameInfo{info.rule_50, info.ep_square, info.castling};
+    // TO-DO: Add Hash
+    counter++;
+    
+
+
     
 }
 
 // Use for checks and stuff
-bool Position::IsAttacked(Square square, Color c) {
+bool Position::IsAttacked(Square square, Color c) const {
     // Knights first: cheapest
     if (Bitboards::GetKnightAttacks(square) & GetBitboard(KNIGHT, c)) return true;
 
@@ -257,6 +264,76 @@ bool Position::IsAttacked(Square square, Color c) {
 
     return false;
 }
+
+bool Position::IsInCheck (Color c) const {
+    Square king_square = Square(ctz(GetBitboard(KING, c)));
+    return IsAttacked (king_square, Opposite(c));
+}
+
+bool Position::IsInCheck () const {
+    return IsInCheck(SideToMove());
+}
+
+bool Position::CanCastleKingside () const {
+    if (IsInCheck()) return false;
+
+    if (SideToMove() == WHITE) {
+        if ((GetCastlingRights() & 0b0001) == 0) {
+            
+            return false;
+        }
+
+        constexpr Bitboard between_squares = (1ULL << F1) | (1ULL << G1);
+        
+        if ((occupancy & between_squares) != 0ULL) return false;
+
+        if (IsAttacked(F1, BLACK) || IsAttacked(G1, BLACK)) return false;
+
+        return true;
+    }
+
+    else {
+        if ((GetCastlingRights() & 0b0100) == 0) return false;
+
+        constexpr Bitboard between_squares = (1ULL << F8) | (1ULL << G8);
+
+        if ((occupancy & between_squares) != 0ULL) return false;
+
+        if (IsAttacked(F8, WHITE) || IsAttacked(G8, WHITE)) return false;
+
+        return true;
+    }
+}
+
+bool Position::CanCastleQueenside () const {
+    if (IsInCheck()) return false;
+
+    if (SideToMove() == WHITE) {
+        if ((GetCastlingRights() & 0b0010) == 0) return false;
+
+        constexpr Bitboard between_squares = (1ULL << D1) | (1ULL << C1) | (1ULL << B1);
+        
+        if ((occupancy & between_squares) != 0ULL) return false;
+
+        if (IsAttacked(D1, BLACK) || IsAttacked(C1, BLACK)) return false;
+
+        return true;
+    }
+
+    else {
+        if ((GetCastlingRights() & 0b1000) == 0) return false;
+
+        constexpr Bitboard between_squares = (1ULL << D8) | (1ULL << C8) | (1ULL << B8);
+
+        if ((occupancy & between_squares) != 0ULL) return false;
+
+        if (IsAttacked(D8, WHITE) || IsAttacked(C8, WHITE)) return false;
+
+        return true;
+    }
+}
+
+
 
 
 

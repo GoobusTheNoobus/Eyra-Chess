@@ -11,7 +11,7 @@ int main() {
 
     std::cout << Eyra::ENGINE_NAME << Eyra::ENGINE_VERSION << " by " << Eyra::ENGINE_AUTHOR << std::endl;
 
-    Eyra::Position pos("rn2kbnr/p3pppp/b1p5/q7/Ppp1P3/4BN2/1PQ2PPP/RN2KB1R w KQkq - 4 10");
+    Eyra::Position pos("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 6 7");
 
     constexpr int ITERATIONS = 10'000'000;
 
@@ -26,7 +26,7 @@ int main() {
     auto end = std::chrono::high_resolution_clock::now();
     double ms = std::chrono::duration<double, std::milli>(end - start).count();
 
-    std::cout << std::boolalpha << pos.IsAttacked(C4, WHITE);
+    
     Eyra::MoveList list;
     Eyra::MoveGen::GenerateMoves(pos, list);
     std::cout << list;

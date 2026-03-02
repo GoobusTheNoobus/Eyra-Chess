@@ -9,17 +9,17 @@
 #include "move.hpp"
 #include "bitboard.hpp"
 
+#include <iostream>
+
 
 
 namespace Eyra {
-   
 
-inline GameInfo PackGameInfo (CastlingRights rights, Square ep, int rule50) {
-   // En Passant Square uses 7 bits instead of 6 because it can be NO_SQUARE
-   return rights | (ep << 4) | (rule50 << 11);
-}
-
-
+struct GameInfo {
+   uint8_t rule_50 = 0;
+   Square ep_square = NO_SQUARE;
+   CastlingRights castling = 0;
+};
 
 class Position {
  public:
@@ -48,7 +48,12 @@ class Position {
     void MakeMove (Move move);
     void UndoMove ();
 
-    bool IsAttacked (Square square, Color c);
+    bool IsAttacked (Square square, Color c) const;
+    bool IsInCheck  (Color c) const;
+    bool IsInCheck  () const;
+
+    bool CanCastleKingside () const;
+    bool CanCastleQueenside() const;
 
     
 
@@ -61,23 +66,28 @@ class Position {
 
     // Game States
     Color side_to_move;
-    CastlingRights castling_rights;
-    Square ep_square;
-    int rule_fifty;
+    
+    GameInfo info;
 
     // Game History
-    MoveList move_history;
+    Move move_history[256];
+    GameInfo info_history[256];
+    uint64_t hash_history[256];
+    uint8_t counter = 0;
 
     // Editting Functions
     void ClearPosition();
     void UpdateOccupancy();
     void ClearSquare (Square square);
     void SetSquare (Square square, Piece piece);
+
+
+    
     
 
 };
 
-inline std::ostream& operator<< (std::ostream& os, const Position& pos) {
+FORCE_INLINE std::ostream& operator<< (std::ostream& os, const Position& pos) {
    os << pos.ToString();
 
    return os;
