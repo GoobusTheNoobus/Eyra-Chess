@@ -21,6 +21,13 @@ struct GameInfo {
    CastlingRights castling = 0;
 };
 
+struct UndoInfo {
+   uint8_t rule_50 = 0;
+   Square ep_square = NO_SQUARE;
+   CastlingRights castling = 0;
+   Piece captured;
+};
+
 class Position {
  public:
     // Constructors
@@ -56,14 +63,15 @@ class Position {
     bool CanCastleQueenside() const;
 
     
+     
 
  private:
 
     // Game History
     Move move_history[256];
-    GameInfo info_history[256];
+    UndoInfo info_history[256];
     uint64_t hash_history[256];
-    uint8_t counter = 0;
+    uint8_t ply;
 
     // Board and Pieces
     Piece pieces[64];

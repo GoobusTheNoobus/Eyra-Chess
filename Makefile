@@ -4,7 +4,6 @@ CXXFLAGS = -std=c++20 -O3 -march=native -mbmi2 \
            -DNDEBUG \
            -funroll-loops \
            -fno-semantic-interposition \
-           -g \
            -flto \
            -fomit-frame-pointer 
 

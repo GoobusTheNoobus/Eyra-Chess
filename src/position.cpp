@@ -213,7 +213,7 @@ void Position::UpdateOccupancy() {
 }
 
 void Position::ClearSquare (Square square) {
-    if (GetPiece(square) == NO_PIECE) return;
+    if (pieces[square] == NO_PIECE) return;
 
     bitboards[GetPiece(square)] &= ~(1ULL << square);
     pieces[square] = NO_PIECE;
@@ -232,35 +232,261 @@ void Position::SetSquare (Square square, Piece piece) {
     
 }
 
+// Assumes all moves are legal
 void Position::MakeMove(Move move) {
+    
+    const Color us = side_to_move;
+    const MoveFlag flag  = GetFlag(move);
+    const Square from    = GetFrom(move);
+    const Square to      = GetTo(move);
+    const Piece moving   = pieces[from];
+    const Piece captured = flag == EN_PASSANT ? MakePiece(PAWN, Opposite(us)): pieces[to];
+
+    
+    
+
     // Append all info before making move
-    move_history[counter] = move;
-    info_history[counter] = GameInfo{info.rule_50, info.ep_square, info.castling};
+    move_history[ply] = move;
+    info_history[ply] = UndoInfo{info.rule_50, info.ep_square, info.castling, pieces[to]};
     // TO-DO: Add Hash
-    counter++;
+    ply++;
+
+    side_to_move = Opposite(side_to_move);
     
+    info.ep_square = NO_SQUARE;
+
+    ClearSquare(from);
+
+    switch (flag) {
+        case CASTLING: {
+            const Square rook_from = (to == G1 || to == G8) ?
+                Square(to + 1):
+                Square(to - 2);
+            const Square rook_to = (to == G1 || to == G8) ?
+                Square(to - 1):
+                Square(to + 1);
+
+            // Move Rook
+            ClearSquare(rook_from);
+            SetSquare(rook_to, MakePiece(ROOK, us));
+
+            // Move King
+            // We already cleared the from square earlier
+            SetSquare(to, moving);
+
+            if (us == WHITE) {
+                info.castling &= ~0b0011;
+            } else {
+                info.castling &= ~0b1100;
+            }
+
+            break;
+        }
+
+        case EN_PASSANT: {
+            const Square ep_capture = Square(to + (us == WHITE ? -8: 8));
+            ClearSquare(ep_capture);
+            SetSquare(to, moving);
+
+            break;
+        }
+
+        case DOUBLE_PUSH: {
+            SetSquare(to, moving);
+            
+            info.ep_square = Square(to + (us == WHITE ? -8 : 8));
+
+            break;
+        }
+
+        case NPROMO:
+        case BPROMO:
+        case RPROMO:
+        case QPROMO: {
+            
+            const Piece promoted_piece = MakePiece(PieceType(flag - NPROMO + 1), us);
+
+            
+            ClearSquare(to);
+            
+
+            SetSquare(to, promoted_piece);
+            break;
+        }
+
+        default: {
+            ClearSquare(to);
+
+            SetSquare(to, moving);
+
+            break;
+        }
+    }
+
+    static constexpr uint8_t castling_mask[64] = {
+    //  a  b  c  d  e  f  g  h
+        2, 0, 0, 0, 0, 0, 0, 1, // 1
+        0, 0, 0, 0, 0, 0, 0, 0, // 2                    
+        0, 0, 0, 0, 0, 0, 0, 0, // 3                   
+        0, 0, 0, 0, 0, 0, 0, 0, // 4               
+        0, 0, 0, 0, 0, 0, 0, 0, // 5               
+        0, 0, 0, 0, 0, 0, 0, 0, // 6               
+        0, 0, 0, 0, 0, 0, 0, 0, // 7           
+        8, 0, 0, 0, 0, 0, 0, 4  // 8
+    };
 
 
+    // If rook moves from its starting square, remove right
+    if (castling_mask[from] && TypeOf(moving) == ROOK) {
+        info.castling &= ~castling_mask[from];
+    }
+
+    // If piece captures rook, remove right
+    if (castling_mask[to] && captured != NO_PIECE && TypeOf(captured) == ROOK) {
+        info.castling &= ~castling_mask[to];
+    }
+
+    // King Moved
+    if (TypeOf(moving) == KING) {
+        const uint8_t king_mask = us == WHITE ? (0b0001 | 0b0010) : (0b0100 | 0b1000);
+        info.castling &= ~king_mask;
+    }
+
+    // Update 50 move rule
+    const bool is_pawn_move = TypeOf(moving) == PAWN;
+    const bool is_capture = captured != NO_PIECE;
+
+    if (is_pawn_move || is_capture) {
+        info.rule_50 = 0;
+    } else {
+        ++info.rule_50;
+    }
+
+    UpdateOccupancy();
+
     
+}
+
+void Position::UndoMove() {
+    side_to_move = Opposite(side_to_move);
+
+    --ply;
+    Move move = move_history[ply];
+    UndoInfo undo_info = info_history[ply];
+
+    info.castling = undo_info.castling;
+    info.ep_square = undo_info.ep_square;
+    info.rule_50 = undo_info.rule_50;
+
+    const Color us = side_to_move;
+
+    const MoveFlag flag = GetFlag(move);
+    const Square to = GetTo(move);
+    const Square from = GetFrom(move);
+
+    const Piece moving = flag >= NPROMO ? MakePiece(PAWN, us): pieces[to];
+    const Piece captured = undo_info.captured;
+
+    
+
+    switch (flag){
+        case CASTLING: {
+            const Square rook_from = (to == G1 || to == G8) ?
+                Square(to + 1):
+                Square(to - 2);
+            const Square rook_to = (to == G1 || to == G8) ?
+                Square(to - 1):  
+                Square(to + 1); 
+
+            ClearSquare(to);
+            SetSquare(from, moving);
+
+            ClearSquare(rook_to);
+            SetSquare(rook_from, MakePiece(ROOK, us));
+            break;
+        }
+
+        case EN_PASSANT: {
+            ClearSquare(to);
+            SetSquare(from, moving);
+            SetSquare(Square(to + (us == WHITE ? -8: 8)), MakePiece(PAWN, Opposite(us)));
+
+            break;
+        }
+
+        case DOUBLE_PUSH: {
+            ClearSquare(to);
+            SetSquare(from, moving);
+            break;
+        }
+
+        case NPROMO:
+        case BPROMO:
+        case RPROMO:
+        case QPROMO: {
+            // Remove promo
+            ClearSquare(to);
+            
+            // Restore original pawn
+            
+            SetSquare(from, moving);
+            
+            
+            SetSquare(to, captured);
+            
+            break;
+        }
+
+        default: {
+            ClearSquare(to);
+            SetSquare(from, moving);
+            SetSquare(to, captured);
+
+            break;
+        }
+    }
+
+    UpdateOccupancy();
+
 }
 
 // Use for checks and stuff
 bool Position::IsAttacked(Square square, Color c) const {
     // Knights first: cheapest
-    if (Bitboards::GetKnightAttacks(square) & GetBitboard(KNIGHT, c)) return true;
+    if (Bitboards::GetKnightAttacks(square) & GetBitboard(KNIGHT, c)) {
+        // std::cout << "For Square " << SquareToString(square) << " Knight Attacked\n";
+        return true;
+    
+    }
 
     // Pawns
-    if (Bitboards::GetPawnAttacks(square, c) & GetBitboard(PAWN, c)) return true;
+    if (Bitboards::GetPawnAttacks(square, Opposite(c)) & GetBitboard(PAWN, c)){
+        // std::cout << "For Square " << SquareToString(square) << " Pawn Attacked\n";
+        return true;
+    
+    }
 
     // Kings
-    if (Bitboards::GetKingAttacks(square) & GetBitboard(KING, c)) return true;
+    if (Bitboards::GetKingAttacks(square) & GetBitboard(KING, c)) {
+        // std::cout << "For Square " << SquareToString(square) << " King Attacked\n";
+        return true;
+    
+    }
 
     // Sliders 
     Bitboard bishops_queens = GetBitboard(BISHOP, c) | GetBitboard(QUEEN, c);
-    if (Bitboards::GetBishopAttacks(square, occupancy) & bishops_queens) return true;
+    if (Bitboards::GetBishopAttacks(square, occupancy) & bishops_queens) {
+        // std::cout << "For Square " << SquareToString(square) << " Bishop/Queen Attacked\n";
+        return true;
+    
+    }
 
     Bitboard rooks_queens = GetBitboard(ROOK, c) | GetBitboard(QUEEN, c);
-    if (Bitboards::GetRookAttacks(square, occupancy) & rooks_queens) return true;
+    if (Bitboards::GetRookAttacks(square, occupancy) & rooks_queens) {
+        // std::cout << "For Square " << SquareToString(square) << " Rook/Queen Attacked\n";
+        return true;
+    
+    }
 
     return false;
 }

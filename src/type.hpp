@@ -52,6 +52,7 @@ enum Square: uint8_t{
 inline constexpr Color Opposite (Color c) { return (c == WHITE) ? BLACK : WHITE; }
 inline constexpr Color PieceColor (Piece piece) { return Color(piece / 6); }
 inline constexpr Piece MakePiece (PieceType pt, Color c) { return Piece(pt + 6 * c); }
+inline constexpr PieceType TypeOf (Piece piece) { return PieceType(piece % 6); }
 
 inline std::string SquareToString (Square square) {
     char file = 'a' + (square & 7);
