@@ -426,7 +426,8 @@ int Engine::Search (Position& pos, int depth, int alpha, int beta, bool can_null
         // Late Move Reduction
         if (legal_moves > 3 && depth >= 3 && !in_check && captured == NO_PIECE && GetFlag(move) < NPROMO) {
             // Search at a reduced depth
-            score = -Search(pos, depth - 2, -alpha - 1, -alpha, true);
+            int reduction = std::max(depth / 2, 1);
+            score = -Search(pos, depth - 1 - reduction, -alpha - 1, -alpha, true);
 
             // If move is good (raises alpha) research at full depth
             if (score > alpha && score < beta) {
@@ -536,6 +537,8 @@ void Engine::Go(int depth, int movetime) {
     for (int current_depth = 1; current_depth <= depth; ++current_depth) {
 
         if (search_info.stop.load(std::memory_order_relaxed)) break;
+
+        if (mate_found) break;
 
         SearchResults result = GetBestMove(position, current_depth, best_move);
 
