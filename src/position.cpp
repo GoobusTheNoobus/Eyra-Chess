@@ -1,4 +1,5 @@
 #include "position.hpp"
+#include "movegen.hpp"
 
 namespace Eyra {
 
@@ -373,6 +374,23 @@ void Position::MakeMove(Move move) {
     }
 
     UpdateOccupancy();
+
+    
+}
+
+// Make a move based on the UCI-Format Algebraic Move Notation
+void Position::MakeMove (const std::string& string_move) {
+    MoveList all_moves;
+    MoveGen::GenerateMoves(*this, all_moves);
+
+    
+
+    for (Move m: all_moves) {
+        if (MoveToString(m) == string_move) {
+            MakeMove(m);
+            return;
+        }
+    }
 
     
 }

@@ -37,9 +37,15 @@ struct SearchResults {
 };
 
 namespace Engine {
+
+    constexpr int MAX_DEPTH = 32;
+    constexpr int KILLERS_PER_DEPTH = 2;
+
     extern SearchInfo search_info;
     extern Position position;
-    extern Move killers[32][2]; // Store 2 killers per each depth
+    extern Move killers[MAX_DEPTH][KILLERS_PER_DEPTH]; // Store 2 killers per each depth
+    extern Move history[COLORS][BOARD_SIZE][BOARD_SIZE]; // For History Heuristics: store moves that has previously caused beta cutoff
+    
 
     inline void ResetKillers () {
         std::memset(killers, 0, sizeof(killers));

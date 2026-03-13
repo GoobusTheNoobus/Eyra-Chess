@@ -66,6 +66,11 @@ inline std::string SquareToString (Square square) {
 inline Square& operator++(Square& s) { return s = Square(s + 1); }
 inline Square operator++(Square& s, int) { Square t = s; ++s; return t; }
 
+// General Constants
+constexpr int BOARD_SIZE = 64;
+constexpr int PIECE_TYPES = 12;
+constexpr int COLORS = 2;
+
 } // namespace Eyra
 
 

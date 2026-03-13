@@ -54,6 +54,7 @@ class Position {
     
 
     void MakeMove (Move move);
+    void MakeMove (const std::string& string_move);
     void UndoMove ();
 
     bool IsAttacked (Square square, Color c) const;
