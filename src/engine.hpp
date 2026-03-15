@@ -97,6 +97,9 @@ namespace Engine {
     int Search (Position& pos, int depth, int alpha, int beta, bool can_null_prune);
     int QSearch (Position& pos, int depth, int alpha, int beta);
 
+    void PerftDivide (int depth);
+    int Perft(int depth);
+
     SearchResults GetBestMove (Position& pos, int depth, Move pv);
     void Go (int depth_limit, int movetime);
 

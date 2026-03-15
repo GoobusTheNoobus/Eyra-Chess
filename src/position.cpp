@@ -101,7 +101,8 @@ void Position::ParseFEN(std::string_view fen) {
                 default: throw std::invalid_argument("Invalid Piece in Board field");
             }
 
-            SetSquare(Square(rank << 3 | file), p);
+            pieces[rank << 3 | file] = p;
+            bitboards[p] |= 1ULL << (rank << 3 | file);
             ++file;
         }
         ++i;
@@ -220,7 +221,15 @@ void Position::UpdateOccupancy() {
 void Position::ClearSquare (Square square) {
     if (pieces[square] == NO_PIECE) return;
 
-    bitboards[GetPiece(square)] &= ~(1ULL << square);
+    Piece piece = pieces[square];
+    Color color = PieceColor(piece);
+
+    Bitboard nsquare_bb = ~Bitboards::SquareBB(square);
+
+    bitboards[pieces[square]] &= nsquare_bb;
+    color_bitboards[color] &= nsquare_bb;
+    occupancy &= nsquare_bb;
+
     pieces[square] = NO_PIECE;
 }
 
@@ -230,9 +239,14 @@ void Position::SetSquare (Square square, Piece piece) {
         return;
     }
 
+    Color color = PieceColor(piece);
+    Bitboard square_bb = Bitboards::SquareBB(square);
+
     pieces[square] = piece;
 
-    bitboards[piece] |= 1ULL << square;
+    bitboards[piece]       |= square_bb;
+    color_bitboards[color] |= square_bb;
+    occupancy              |= square_bb;
 
     
 }
@@ -372,7 +386,7 @@ void Position::MakeMove(Move move) {
         ++info.rule_50;
     }
 
-    UpdateOccupancy();
+    // UpdateOccupancy();
 
     
 }
@@ -479,7 +493,7 @@ void Position::UndoMove() {
         }
     }
 
-    UpdateOccupancy();
+    // UpdateOccupancy();
 
 }
 

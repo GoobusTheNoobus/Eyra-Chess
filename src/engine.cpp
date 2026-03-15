@@ -533,6 +533,69 @@ int Search (Position& pos, int depth, int alpha, int beta, bool can_null_prune) 
     return best_score;
 }
 
+int Perft (int depth) {
+    if (depth == 0) {
+        return 1;
+    }
+
+    Color side_moving = position.SideToMove();
+    MoveList moves;
+    MoveGen::GenerateMoves(position, moves);
+
+    int num_moves = 0;
+
+    for (Move move: moves) {
+        position.MakeMove(move);
+
+        if (position.IsInCheck(side_moving)) {
+            position.UndoMove();
+            continue;
+        }
+
+        num_moves += Perft(depth - 1);
+
+        position.UndoMove();
+    }
+
+    return num_moves;
+
+    
+}
+
+void PerftDivide(int depth) {
+    Color side_moving = position.SideToMove();
+    MoveList moves;
+    MoveGen::GenerateMoves(position, moves);
+
+    uint64_t total = 0;
+
+    auto start = std::chrono::high_resolution_clock::now();
+
+    for (Move move : moves) {
+        position.MakeMove(move);
+
+        if (position.IsInCheck(side_moving)) {
+            position.UndoMove();
+            continue;
+        }
+
+        uint64_t count = Perft(depth - 1);
+        total += count;
+
+        std::cout << MoveToString(move) << ": " << count << "\n";
+
+        position.UndoMove();
+    }
+
+    auto end = std::chrono::high_resolution_clock::now();
+    uint64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    elapsed = std::max<uint64_t>(elapsed, 1); // prevent division by zero
+
+    std::cout << "\nTotal: " << total << "\n";
+    std::cout << "Time:  " << elapsed << "ms\n";
+    std::cout << "NPS:   " << (total * 1000 / elapsed) << "\n";
+}
+
 SearchResults GetBestMove(Position& pos, int depth, Move pv) {
     Move best_move = 0;
     int best_score = -INF;
@@ -622,9 +685,6 @@ void Go(int depth, int movetime) {
             elapsed,
             pv
         );
-
-        // std::cout << "info depth " << current_depth << " cp score " << eval << " nps " << (search_info.nodes * 1000 / std::max<uint64_t>(elapsed, 1) ) << " pv " << MoveToString(best_move) << std::endl;
-
     }
 
     std::cout << "bestmove " << MoveToString(best_move) << std::endl;

@@ -141,6 +141,13 @@ void UCI::ParseGoCommand (const std::string& command) {
             iss >> winc;
         } else if (token == "binc") {
             iss >> binc;
+        } else if (token == "perft") {
+            int perft_depth = 0;
+            iss >> perft_depth;
+
+            Engine::PerftDivide(perft_depth);
+
+            return;
         }
     }
 
