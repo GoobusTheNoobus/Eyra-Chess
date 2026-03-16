@@ -12,7 +12,6 @@ namespace {
 template <Color us>
 void GeneratePawnMoves(const Position& pos, MoveList& list) {
 
-    
     constexpr Color them = Opposite(us);
     constexpr bool is_white = us == WHITE;
 
@@ -218,68 +217,6 @@ MoveList MoveGen::GenerateMoves(const Position& pos) {
                               : GenerateAll<BLACK>(pos, list);
     return list;
 }
-
-
-    
-
-void MoveGen::Benchmark(const Position& pos) {
-    using namespace std::chrono;
-    MoveList list;
-    const int N = 10000000;
-    volatile int sink = 0;  // prevents optimization
-
-    auto t1 = high_resolution_clock::now();
-    for (int i = 0; i < N; i++) {
-        list.count = 0;
-        GeneratePawnMoves<WHITE>(pos, list);
-        sink += list.count;
-    }
-    auto t2 = high_resolution_clock::now();
-    for (int i = 0; i < N; i++) {
-        list.count = 0;
-        GeneratePieceMoves<WHITE, ROOK>(pos, list);
-        sink += list.count;
-    }
-    auto t3 = high_resolution_clock::now();
-    for (int i = 0; i < N; i++) {
-        list.count = 0;
-        GeneratePieceMoves<WHITE, QUEEN>(pos, list);
-        sink += list.count;
-    }
-    auto t4 = high_resolution_clock::now();
-    for (int i = 0; i < N; i++) {
-        list.count = 0;
-        GeneratePieceMoves<WHITE, KNIGHT>(pos, list);
-        sink += list.count;
-    }
-    auto t5 = high_resolution_clock::now();
-    for (int i = 0; i < N; i++) {
-        list.count = 0;
-        GeneratePieceMoves<WHITE, BISHOP>(pos, list);
-        sink += list.count;
-    }
-
-    auto t6 = high_resolution_clock::now();
-
-
-
-    
-
-    std::cout << "Pawns:   " << duration_cast<nanoseconds>(t2-t1).count() / N << "ns\n";
-    std::cout << "Rooks:   " << duration_cast<nanoseconds>(t3-t2).count() / N << "ns\n";
-    std::cout << "Fatties (queen):  " << duration_cast<nanoseconds>(t4-t3).count() / N << "ns\n";
-    std::cout << "Knights: " << duration_cast<nanoseconds>(t5-t4).count() / N << "ns\n";
-    std::cout << "Bishops: " << duration_cast<nanoseconds>(t6-t5).count() / N << "ns\n";
-
-    std::cout << sink << std::endl;
-    (void)sink;
-}
-
-
-
-
-
-
 
 } // namespace Eyra
 

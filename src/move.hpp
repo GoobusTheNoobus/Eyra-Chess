@@ -5,6 +5,9 @@
 #include <algorithm>
 
 namespace Eyra {
+
+// ======================= Move Functions =======================
+
 enum MoveFlag : uint8_t {
     NORMAL,
     DOUBLE_PUSH,
@@ -32,7 +35,6 @@ FORCE_INLINE Move CreateEnPassant  (Square from, Square to) { return CreateMove(
 template <PieceType pt>
 FORCE_INLINE Move CreatePromoMove  (Move base) { return base | (NPROMO + (pt - KNIGHT)) << 12; }
 
-// Move Lookup
 FORCE_INLINE Square GetFrom     (Move move) { return Square(move & 0x3F); }
 FORCE_INLINE Square GetTo       (Move move) { return Square((move >> 6) & 0x3F); }
 FORCE_INLINE MoveFlag GetFlag   (Move move) { return MoveFlag((move >> 12) & 0xF); }
@@ -71,12 +73,10 @@ struct MoveList {
 
         return result;
     }
-
-    
-
     
 };
 
+// So you can do std::cout << move_list...
 FORCE_INLINE std::ostream& operator<< (std::ostream& os, const MoveList& list) {
     os << (list.ToString());
     return os;

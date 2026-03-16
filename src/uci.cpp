@@ -9,19 +9,9 @@
 
 namespace Eyra {
 
-namespace {
 
-std::thread search_thread;
 
-void Stop() {
-    Engine::search_info.stop.store(true, std::memory_order_relaxed);
-
-    if (search_thread.joinable()) {
-        search_thread.join();
-    }
-}
- 
-} // namespace anonymous
+// ======================= Logging Functions =======================
 
 void UCI::InfoDepth (int depth, int eval, uint64_t nodes, uint64_t elapsed, const std::vector<Move>& pv) {
     std::string score;
@@ -62,6 +52,22 @@ void UCI::InfoString (const std::string& message) {
 void UCI::BestMove (Move move, Move ponder) {
     std::cout << MoveToString(move) << std::endl; // TO-DO: Ponder
 }
+
+// ======================= UCI Input Functions =======================
+
+namespace {
+
+std::thread search_thread;
+
+void Stop() {
+    Engine::search_info.stop.store(true, std::memory_order_relaxed);
+
+    if (search_thread.joinable()) {
+        search_thread.join();
+    }
+}
+ 
+} // namespace anonymous
 
 void UCI::ParsePosition (const std::string& command) {
 
@@ -181,6 +187,7 @@ void UCI::PrintPosition() {
     std::cout << Engine::position << std::endl;
 }
 
+// Main UCI Loop 
 void UCI::Loop () {
     while (true) {
         std::string string;

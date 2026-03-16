@@ -4,6 +4,9 @@
 
 namespace Eyra {
 
+// ======================= Transposition Table Functions =======================
+// TO-DO: Finish TT Impl
+
 TranspositionTable::TranspositionTable(size_t mb) {
     static constexpr size_t entry_size = 16;
 
@@ -36,7 +39,8 @@ TranspositionEntry* TranspositionTable::Probe(uint64_t key) {
     return (entry->key == key) ? entry: nullptr;
 }
 
-// Evaluation
+// ======================= Evaluation =======================
+
 namespace {
 
 Square FlipIndex (Square square) { return Square(square ^ 56); }
@@ -187,35 +191,10 @@ static constexpr int eg_pst[6][64] = {
 
 namespace Engine {
 
-SearchInfo search_info;
-Position position;
-Move killers[MAX_DEPTH][KILLERS_PER_DEPTH];
-Move history[COLORS][BOARD_SIZE][BOARD_SIZE];
 
-
-namespace {
-
-
-void Stop() {
-    search_info.stop.store(true, std::memory_order_relaxed);
-}
-
-bool ShouldStop() {
-    if (search_info.stop.load(std::memory_order_relaxed)) return true;
-
-    if (search_info.max_time_ms > 0) {
-        auto now = steady_clock::now();
-        auto elapsed = duration_cast<std::chrono::milliseconds>(now - search_info.start_time).count();
-
-        if (elapsed >= search_info.max_time_ms) {
-            return true;
-        }
-    }
-    return false;
-}
-
-} // namespace anonymous
-
+// Finds how close to the endgame the position is
+// 1 means pawn and king only
+// 0 means there are lots of pieces on te board still
 float EGWeight (Position& pos) {
     static constexpr int KNIGHT_GAME_PHASE = 2;
     static constexpr int BISHOP_GAME_PHASE = 3;
@@ -225,23 +204,21 @@ float EGWeight (Position& pos) {
     static constexpr int MAX_GAME_PHASE = 23;
 
     // Include every piece except for kings
-        int phase = 
-            popcount(pos.GetBitboard(W_KNIGHT) | pos.GetBitboard(B_KNIGHT)) * KNIGHT_GAME_PHASE +
-            popcount(pos.GetBitboard(W_BISHOP) | pos.GetBitboard(B_BISHOP)) * BISHOP_GAME_PHASE +
-            popcount(pos.GetBitboard(W_ROOK)   | pos.GetBitboard(B_ROOK)) * ROOK_GAME_PHASE +
-            std::min(popcount(pos.GetBitboard(W_QUEEN)  | pos.GetBitboard(B_QUEEN)), 1) * QUEEN_GAME_PHASE; // If a pawn promotes and there are multiple queens, only count 1
-        
-        
+    int phase = 
+        popcount(pos.GetBitboard(W_KNIGHT) | pos.GetBitboard(B_KNIGHT)) * KNIGHT_GAME_PHASE +
+        popcount(pos.GetBitboard(W_BISHOP) | pos.GetBitboard(B_BISHOP)) * BISHOP_GAME_PHASE +
+        popcount(pos.GetBitboard(W_ROOK)   | pos.GetBitboard(B_ROOK)) * ROOK_GAME_PHASE +
+        std::min(popcount(pos.GetBitboard(W_QUEEN)  | pos.GetBitboard(B_QUEEN)), 1) * QUEEN_GAME_PHASE; // If a pawn promotes and there are multiple queens, only count 1
 
-        return 1 - std::min (1.0f, static_cast<float> (phase) / MAX_GAME_PHASE);
+    return 1 - std::min (1.0f, static_cast<float> (phase) / MAX_GAME_PHASE);
 }
 
 int Evaluate (Position& pos) {
 
     static constexpr int knight_mobility_bonus = 2;
     static constexpr int bishop_mobility_bonus = 1;
-    static constexpr int rook_mobility_bonus = 1;
-    static constexpr int queen_mobility_bonus = 1;
+    static constexpr int rook_mobility_bonus   = 1;
+    static constexpr int queen_mobility_bonus  = 1;
 
     // Draw by 50 move rule
     if (pos.GetRuleFifty() >= 100) {
@@ -264,7 +241,7 @@ int Evaluate (Position& pos) {
             // Material + PST
             score += static_cast<int>(weight * (eg_pst[pt][square] + eg_value[pt]) + (1 - weight) * (mg_pst[pt][square] + mg_value[pt]));
 
-            // Mobility
+            // Mobility 
             switch (pt) {
                 case KNIGHT:
                     score += popcount(Bitboards::GetKnightAttacks(square)) * knight_mobility_bonus;
@@ -320,7 +297,28 @@ int Evaluate (Position& pos) {
     return score;
 }
 
+// ======================= Helper Functions =======================
+
 namespace {
+
+
+void Stop() {
+    search_info.stop.store(true, std::memory_order_relaxed);
+}
+
+bool ShouldStop() {
+    if (search_info.stop.load(std::memory_order_relaxed)) return true;
+
+    if (search_info.max_time_ms > 0) {
+        auto now = steady_clock::now();
+        auto elapsed = duration_cast<std::chrono::milliseconds>(now - search_info.start_time).count();
+
+        if (elapsed >= search_info.max_time_ms) {
+            return true;
+        }
+    }
+    return false;
+}
 
 int ScoreMove (const Position& pos, Move move, Move pv, Move killer_a, Move killer_b) {
     if (move == pv) return 10'000'000;
@@ -365,8 +363,16 @@ Move PickBestLookingMove (const Position& pos, MoveList& list, Move* current, Mo
 
 } // namespace anonymous
 
+// ======================= Engine States =======================
 
+SearchInfo search_info;
+Position position;
+Move killers[MAX_DEPTH][KILLERS_PER_DEPTH];
+Move history[COLORS][BOARD_SIZE][BOARD_SIZE];
 
+// ======================= Search Function Definitions =======================
+
+// Quiescence Search only searches captures and promotions
 int QSearch (Position& pos, int depth, int alpha, int beta) {
     search_info.nodes++;
 
@@ -379,30 +385,27 @@ int QSearch (Position& pos, int depth, int alpha, int beta) {
 
     int standpat = Evaluate(pos);
 
+    // Position is too good
     if (standpat >= beta) return beta;
 
     alpha = std::max(alpha, standpat);
 
     Color side_moving = pos.SideToMove();
-    MoveList moves;
 
+    MoveList moves;
     MoveGen::GenerateMoves(pos, moves);
-    // Sort(pos, moves, 0);
 
     for (Move move: moves) {
         bool is_noisy = (pos.GetPiece(GetTo(move)) != NO_PIECE || GetFlag(move) >= NPROMO);
-
         if (!is_noisy) continue;
 
         int gain = std::abs(mg_value[TypeOf(pos.GetPiece(GetTo(move)))])  - std::abs(mg_value[TypeOf(pos.GetPiece(GetFrom(move)))] + 100);
-
         if (standpat + gain + 200 < alpha) continue;
 
         pos.MakeMove(move);
 
         if (pos.IsInCheck(side_moving)) {
             pos.UndoMove();
-
             continue;
         }
 
@@ -421,6 +424,7 @@ int QSearch (Position& pos, int depth, int alpha, int beta) {
 
 }
 
+// Negamax Search where the score is for the current side to move
 int Search (Position& pos, int depth, int alpha, int beta, bool can_null_prune) {
     search_info.nodes++;
 
@@ -429,16 +433,14 @@ int Search (Position& pos, int depth, int alpha, int beta, bool can_null_prune) 
     }
 
     if (depth <= 0) {
-        return QSearch(pos, 16, alpha, beta);
+        return QSearch(pos, 32, alpha, beta);
     }
 
     int plies_from_root = search_info.depth - depth;
-
     Color side_moving = pos.SideToMove();
+
     MoveList moves;
     MoveGen::GenerateMoves(pos, moves);
-
-    // Sort(pos, moves, 0, killers[plies_from_root][0], killers[plies_from_root][1]);
 
     int legal_moves = 0;
     int best_score = -INF;
@@ -469,13 +471,11 @@ int Search (Position& pos, int depth, int alpha, int beta, bool can_null_prune) 
         Piece captured = pos.GetPiece(GetTo(move));
         pos.MakeMove(move);
 
-        // Filter Illegal Immigrants
+        // Filter moves that put the moving side into check
         if (pos.IsInCheck(side_moving)) {
             pos.UndoMove();
             continue;
         }
-
-        
 
         int score;
 
@@ -522,7 +522,8 @@ int Search (Position& pos, int depth, int alpha, int beta, bool can_null_prune) 
         
     }
 
-     if (legal_moves == 0) {
+    // All pseudo legal moves filtered out and no legal move
+    if (legal_moves == 0) {
         // Checkmate
         if (pos.IsInCheck(side_moving)) return - (MATE_EVAL - plies_from_root);
         
@@ -533,68 +534,7 @@ int Search (Position& pos, int depth, int alpha, int beta, bool can_null_prune) 
     return best_score;
 }
 
-int Perft (int depth) {
-    if (depth == 0) {
-        return 1;
-    }
 
-    Color side_moving = position.SideToMove();
-    MoveList moves;
-    MoveGen::GenerateMoves(position, moves);
-
-    int num_moves = 0;
-
-    for (Move move: moves) {
-        position.MakeMove(move);
-
-        if (position.IsInCheck(side_moving)) {
-            position.UndoMove();
-            continue;
-        }
-
-        num_moves += Perft(depth - 1);
-
-        position.UndoMove();
-    }
-
-    return num_moves;
-
-    
-}
-
-void PerftDivide(int depth) {
-    Color side_moving = position.SideToMove();
-    MoveList moves;
-    MoveGen::GenerateMoves(position, moves);
-
-    uint64_t total = 0;
-
-    auto start = std::chrono::high_resolution_clock::now();
-
-    for (Move move : moves) {
-        position.MakeMove(move);
-
-        if (position.IsInCheck(side_moving)) {
-            position.UndoMove();
-            continue;
-        }
-
-        uint64_t count = Perft(depth - 1);
-        total += count;
-
-        std::cout << MoveToString(move) << ": " << count << "\n";
-
-        position.UndoMove();
-    }
-
-    auto end = std::chrono::high_resolution_clock::now();
-    uint64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    elapsed = std::max<uint64_t>(elapsed, 1); // prevent division by zero
-
-    std::cout << "\nTotal: " << total << "\n";
-    std::cout << "Time:  " << elapsed << "ms\n";
-    std::cout << "NPS:   " << (total * 1000 / elapsed) << "\n";
-}
 
 SearchResults GetBestMove(Position& pos, int depth, Move pv) {
     Move best_move = 0;
@@ -691,12 +631,77 @@ void Go(int depth, int movetime) {
 
 }
 
+// Perft test, returns number of nodes a in depth moves
+int Perft (int depth) {
+    if (depth == 0) {
+        return 1;
+    }
+
+    Color side_moving = position.SideToMove();
+    MoveList moves;
+    MoveGen::GenerateMoves(position, moves);
+
+    int num_moves = 0;
+
+    for (Move move: moves) {
+        position.MakeMove(move);
+
+        if (position.IsInCheck(side_moving)) {
+            position.UndoMove();
+            continue;
+        }
+
+        num_moves += Perft(depth - 1);
+
+        position.UndoMove();
+    }
+
+    return num_moves;
+
+    
+}
+
+// Prints the perft result of each legal move 
+void PerftDivide(int depth) {
+    Color side_moving = position.SideToMove();
+    MoveList moves;
+    MoveGen::GenerateMoves(position, moves);
+
+    uint64_t total = 0;
+
+    auto start = std::chrono::high_resolution_clock::now();
+
+    for (Move move : moves) {
+        position.MakeMove(move);
+
+        if (position.IsInCheck(side_moving)) {
+            position.UndoMove();
+            continue;
+        }
+
+        uint64_t count = Perft(depth - 1);
+        total += count;
+
+        std::cout << MoveToString(move) << ": " << count << "\n";
+
+        position.UndoMove();
+    }
+
+    auto end = std::chrono::high_resolution_clock::now();
+    uint64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    elapsed = std::max<uint64_t>(elapsed, 1); // prevent division by zero
+
+    std::cout << "\nTotal: " << total << "\n";
+    std::cout << "Time:  " << elapsed << "ms\n";
+    std::cout << "NPS:   " << (total * 1000 / elapsed) << "\n";
+}
     
 
 } // namespace Engine
 
 
-
-
-
 } // namespace Eyra
+
+
+
+

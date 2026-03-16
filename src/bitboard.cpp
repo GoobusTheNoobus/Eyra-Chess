@@ -2,15 +2,13 @@
 
 #include <iostream>
 
-using namespace Eyra;
+namespace Eyra{
 
 
 namespace {
 
+// ======================= Function Declarations =======================
 
-
-
-// Forward Declare functions
 int HashBishop (Square square, Bitboard blockers);
 int HashRook   (Square square, Bitboard blockers);
 
@@ -22,38 +20,21 @@ Bitboard GenerateBlocker (int index, Bitboard mask);
 void PrecomputeBishop (Square square, uint32_t offset);
 void PrecomputeRook   (Square square, uint32_t offset);
 
-// Attack Tables
+// ======================= Compile Time Tables =======================
 
-Bitboard ComputeRookMask(Square square) {
-    Bitboard mask = 0ULL;
-    int rank = square >> 3;
-    int file = square & 7;
+constexpr Bitboard square_bb[64] = {
+    1ULL <<  0, 1ULL <<  1, 1ULL <<  2, 1ULL <<  3, 1ULL <<  4, 1ULL <<  5, 1ULL <<  6, 1ULL <<  7, 
+    1ULL <<  8, 1ULL <<  9, 1ULL << 10, 1ULL << 11, 1ULL << 12, 1ULL << 13, 1ULL << 14, 1ULL << 15, 
+    1ULL << 16, 1ULL << 17, 1ULL << 18, 1ULL << 19, 1ULL << 20, 1ULL << 21, 1ULL << 22, 1ULL << 23, 
+    1ULL << 24, 1ULL << 25, 1ULL << 26, 1ULL << 27, 1ULL << 28, 1ULL << 29, 1ULL << 30, 1ULL << 31, 
+    1ULL << 32, 1ULL << 33, 1ULL << 34, 1ULL << 35, 1ULL << 36, 1ULL << 37, 1ULL << 38, 1ULL << 39, 
+    1ULL << 40, 1ULL << 41, 1ULL << 42, 1ULL << 43, 1ULL << 44, 1ULL << 45, 1ULL << 46, 1ULL << 47, 
+    1ULL << 48, 1ULL << 49, 1ULL << 50, 1ULL << 51, 1ULL << 52, 1ULL << 53, 1ULL << 54, 1ULL << 55, 
+    1ULL << 56, 1ULL << 57, 1ULL << 58, 1ULL << 59, 1ULL << 60, 1ULL << 61, 1ULL << 62, 1ULL << 63,
+};
 
-    // North - exclude rank 8
-    for (int r = rank + 1; r <= 6; r++) mask |= 1ULL << (r << 3 | file);
-    // South - exclude rank 1
-    for (int r = rank - 1; r >= 1; r--) mask |= 1ULL << (r << 3 | file);
-    // East - exclude file H
-    for (int f = file + 1; f <= 6; f++) mask |= 1ULL << (rank << 3 | f);
-    // West - exclude file A
-    for (int f = file - 1; f >= 1; f--) mask |= 1ULL << (rank << 3 | f);
-
-    return mask;
-}
-
-Bitboard ComputeBishopMask(Square square) {
-    Bitboard mask = 0ULL;
-    int rank = square >> 3;
-    int file = square & 7;
-
-    for (int r = rank+1, f = file+1; r <= 6 && f <= 6; r++, f++) mask |= 1ULL << (r<<3|f);
-    for (int r = rank+1, f = file-1; r <= 6 && f >= 1; r++, f--) mask |= 1ULL << (r<<3|f);
-    for (int r = rank-1, f = file+1; r >= 1 && f <= 6; r--, f++) mask |= 1ULL << (r<<3|f);
-    for (int r = rank-1, f = file-1; r >= 1 && f >= 1; r--, f--) mask |= 1ULL << (r<<3|f);
-
-    return mask;
-}
-
+// Note that attacks does not mean legal moves,
+// just means controlled squares
 constexpr Bitboard knight_table[64] = {
     0x0000000000020400ULL, 0x0000000000050800ULL, 0x00000000000A1100ULL, 0x0000000000142200ULL,
     0x0000000000284400ULL, 0x0000000000508800ULL, 0x0000000000A01000ULL, 0x0000000000402000ULL,
@@ -131,15 +112,8 @@ constexpr Bitboard pawn_table[2][64] = {
     }
 };
 
-// ===================================== Sliders and Magic =====================================
-
-struct MagicEntry {
-    Bitboard mask;
-    Bitboard magic;
-    uint32_t offset;
-    uint8_t  shift;
-};
-
+// Masks that blockers can exist on that can affect the attack ray of the piece
+// Excludes edge files and ranks
 constexpr Bitboard bishop_mask[64] = {
     0x0040201008040200ULL, 0x0000402010080400ULL, 0x0000004020100A00ULL, 0x0000000040221400ULL,
     0x0000000002442800ULL, 0x0000000204085000ULL, 0x0000020408102000ULL, 0x0002040810204000ULL,
@@ -179,30 +153,7 @@ constexpr Bitboard rook_mask[64] = {
     0x6E10101010101000ULL,0x5E20202020202000ULL,0x3E40404040404000ULL,0x7E80808080808000ULL,
 };
 
-constexpr uint8_t bishop_relevancy[64] = {
-    6, 5, 5, 5, 5, 5, 5, 6,
-    5, 5, 5, 5, 5, 5, 5, 5,
-    5, 5, 7, 7, 7, 7, 5, 5,
-    5, 5, 7, 9, 9, 7, 5, 5,
-    5, 5, 7, 9, 9, 7, 5, 5,
-    5, 5, 7, 7, 7, 7, 5, 5,
-    5, 5, 5, 5, 5, 5, 5, 5,
-    6, 5, 5, 5, 5, 5, 5, 6,
-};
-
-constexpr uint8_t rook_relevancy[64] = {
-    12, 11, 11, 11, 11, 11, 11, 12,
-    11, 10, 10, 10, 10, 10, 10, 11,
-    11, 10, 10, 10, 10, 10, 10, 11,
-    11, 10, 10, 10, 10, 10, 10, 11,
-    11, 10, 10, 10, 10, 10, 10, 11,
-    11, 10, 10, 10, 10, 10, 10, 11,
-    11, 10, 10, 10, 10, 10, 10, 11,
-    12, 11, 11, 11, 11, 11, 11, 12,
-};
-
-// Magic Numbers
-
+// Magic numbers used in magic hashing (PEXT prefered)
 constexpr Bitboard rook_magic[64] = {
     0x0A8002C000108020ULL, 0x06C00049B0002001ULL, 0x0100200010090040ULL, 0x2480041000800801ULL,
     0x0280028004000800ULL, 0x0900410008040022ULL, 0x0280020001001080ULL, 0x2880002041000080ULL,
@@ -241,21 +192,58 @@ constexpr Bitboard bishop_magic[64] = {
     0x0001000042304105ULL, 0x0010008830412A00ULL, 0x2520081090008908ULL, 0x40102000A0A60140ULL,
 };
 
-constexpr int bishop_size = 5248;
-constexpr int rook_size = 102400;
+// The relevancy is the popcount of the mask for that piece and square
+constexpr uint8_t bishop_relevancy[64] = {
+    6, 5, 5, 5, 5, 5, 5, 6,
+    5, 5, 5, 5, 5, 5, 5, 5,
+    5, 5, 7, 7, 7, 7, 5, 5,
+    5, 5, 7, 9, 9, 7, 5, 5,
+    5, 5, 7, 9, 9, 7, 5, 5,
+    5, 5, 7, 7, 7, 7, 5, 5,
+    5, 5, 5, 5, 5, 5, 5, 5,
+    6, 5, 5, 5, 5, 5, 5, 6,
+};
 
-Bitboard bishop_table[bishop_size];
-Bitboard rook_table[rook_size];
+constexpr uint8_t rook_relevancy[64] = {
+    12, 11, 11, 11, 11, 11, 11, 12,
+    11, 10, 10, 10, 10, 10, 10, 11,
+    11, 10, 10, 10, 10, 10, 10, 11,
+    11, 10, 10, 10, 10, 10, 10, 11,
+    11, 10, 10, 10, 10, 10, 10, 11,
+    11, 10, 10, 10, 10, 10, 10, 11,
+    11, 10, 10, 10, 10, 10, 10, 11,
+    12, 11, 11, 11, 11, 11, 11, 12,
+};
+
+
+
+// ======================= Magic Bitboard Tables =======================
+
+// One for each square for each piece
+struct MagicEntry {
+    Bitboard mask;    // Blocker mask for that square
+    Bitboard magic;   // The magic number for hashing (PEXT is used when possible though)
+    uint32_t offset;  // The array indexing offset when getting attack bitboard
+    uint8_t  shift;   // Equal to 64 - relevancy, used in hashing 
+};
+
+// These tables are computed at runtime
+constexpr int bishop_table_size = 5248;
+constexpr int rook_table_size   = 102400;
+
+Bitboard bishop_table[bishop_table_size];
+Bitboard rook_table[rook_table_size];
 
 MagicEntry bishop_entries[64];
 MagicEntry rook_entries[64];
 
-Bitboard square_bb[64];
 
-// There now here comes the fun part
+
+// ======================= Magic Bitboard Functions =======================
+
 int HashBishop (Square square, Bitboard blockers) {
-    #if defined(__BMI2__) && !defined(NO_PEXT)  
-    // PEXT Hashing which I dont think I have
+#if defined(__BMI2__) && !defined(NO_PEXT)  
+    // PEXT Hashing 
     return _pext_u64(blockers, bishop_mask[square]);
 #else
     // Magic fallback 
@@ -264,8 +252,8 @@ int HashBishop (Square square, Bitboard blockers) {
 }
 
 int HashRook (Square square, Bitboard blockers) {
-    #if defined(__BMI2__) && !defined(NO_PEXT)  
-    // PEXT Hashing which I dont think I have
+#if defined(__BMI2__) && !defined(NO_PEXT)  
+    // PEXT Hashing
     return _pext_u64(blockers, rook_mask[square]);
 #else
     // Magic fallback 
@@ -280,8 +268,7 @@ Bitboard RaycastBishop (Square square, Bitboard blockers) {
     int rank = square >> 3;
     int file = square & 7;
 
-        
-
+    // North-East
     for (int newRank = rank + 1, newFile = file + 1; newRank <= 7 && newFile <= 7; ++newRank, ++newFile) {
 
         Bitboard newSquareMask = 1ULL << (newRank << 3 | newFile);
@@ -293,6 +280,7 @@ Bitboard RaycastBishop (Square square, Bitboard blockers) {
         mask |= newSquareMask;
     }
 
+    // North-West
     for (int newRank = rank + 1, newFile = file - 1; newRank <= 7 && newFile >= 0; ++newRank, --newFile) {
             
         Bitboard newSquareMask = 1ULL << (newRank << 3 | newFile);
@@ -304,6 +292,7 @@ Bitboard RaycastBishop (Square square, Bitboard blockers) {
         mask |= newSquareMask;
     }
 
+    // South-East
     for (int newRank = rank - 1, newFile = file + 1; newRank >= 0 && newFile <= 7; --newRank, ++newFile) {
             
         Bitboard newSquareMask = 1ULL << (newRank << 3 | newFile);
@@ -315,6 +304,7 @@ Bitboard RaycastBishop (Square square, Bitboard blockers) {
         mask |= newSquareMask;
     }
 
+    // South-West
     for (int newRank = rank - 1, newFile = file - 1; newRank >= 0 && newFile >= 0; --newRank, --newFile) {
             
         Bitboard newSquareMask = 1ULL << (newRank << 3 | newFile);
@@ -385,6 +375,7 @@ Bitboard RaycastRook (Square square, Bitboard blockers) {
     
 }
 
+// Ensures that every index will be mapped to a unique blocker combination
 Bitboard GenerateBlocker (int index, Bitboard mask) {
     Bitboard blockers = 0ULL;
 
@@ -412,10 +403,7 @@ void PrecomputeBishop (Square square, uint32_t offset) {
         (uint8_t)(64 - bishop_relevancy[square])
     };
 
-
-
     for (int i = 0; i < (1 << bishop_relevancy[square]); i++) {
-        
         Bitboard blockers = GenerateBlocker(i, bishop_mask[square]);
 
         int index = HashBishop(square, blockers);
@@ -424,7 +412,6 @@ void PrecomputeBishop (Square square, uint32_t offset) {
 }
 
     
-
 void PrecomputeRook (Square square, uint32_t offset) {
     rook_entries[square] = {
         rook_mask[square],
@@ -434,24 +421,30 @@ void PrecomputeRook (Square square, uint32_t offset) {
     };
 
     for (int i = 0; i < (1 << rook_relevancy[square]); i++) {
-        
         Bitboard blockers = GenerateBlocker(i, rook_mask[square]);
 
         int index = HashRook(square, blockers);
-
         rook_table[offset + index] = RaycastRook(square, blockers);
     }
 }
 
-
 } // anonymous namespace
 
 
-namespace Eyra::Bitboards {
+namespace Bitboards {
 
+// ======================= Public Functions =======================
 
-
+// Initializes the runtime-initialized tables
+// Must be ran exactly once before any Bitboard operations
 void Init() {
+/*
+#if defined(__BMI2__) && !defined(NO_PEXT)  
+    std::cout << "info string BMI2 supported" << std::endl;
+#else
+    std::cout << "info string BMI2 not supported" << std::endl;
+#endif
+*/
 
     uint32_t rook_offset   = 0;
     uint32_t bishop_offset = 0;
@@ -461,8 +454,6 @@ void Init() {
         PrecomputeRook(square, rook_offset);
 
         // std::cout << "0x" << std::hex << std::uppercase << std::setw(16) << std::setfill('0') << ComputeRookMask(square) << "ULL," << (((square + 1) % 4 == 0) ? "\n" : "" );
-        
-        square_bb[square] = 1ULL << square;
 
         bishop_offset += 1 << bishop_relevancy[square];
         rook_offset   += 1 << rook_relevancy[square];
@@ -474,7 +465,6 @@ void Init() {
 Bitboard SquareBB (Square square) {
     return square_bb[square];
 }
-
 
 Bitboard GetBishopAttacks(Square square, Bitboard occupancy) {
     const MagicEntry& m = bishop_entries[square];
@@ -518,4 +508,5 @@ Bitboard GetKingAttacks (Square square) {
 
 template Bitboard GetPawnAttacks<WHITE>(Square);
 template Bitboard GetPawnAttacks<BLACK>(Square);
-} // namespace Eyra::Bitboards
+} // namespace Bitboards
+} // namespace Eyra

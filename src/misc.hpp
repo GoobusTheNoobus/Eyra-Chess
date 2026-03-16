@@ -2,6 +2,7 @@
 
 namespace Eyra {
 
+// Miscellaneous info
 constexpr const char* ENGINE_NAME    = "Eyra Chess Engine ";
 constexpr const char* ENGINE_VERSION = "v0.3.0";
 constexpr const char* ENGINE_AUTHOR  = "GoobusTheNoobus";

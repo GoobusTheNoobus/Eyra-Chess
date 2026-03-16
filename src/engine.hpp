@@ -12,6 +12,7 @@ using namespace std::chrono;
 
 namespace Eyra {
 
+// How TTScores will be interpreted
 enum class TTFlag: uint8_t {
     NONE,
     EXACT,
@@ -19,12 +20,13 @@ enum class TTFlag: uint8_t {
     UPPERBOUND
 };
 
+
 struct TranspositionEntry {
-    Key      key;
-    int16_t eval;
-    uint8_t  depth;
-    TTFlag   flag;
-    Move     best_move;
+    Key      key;        // Full Zobrist key
+    int16_t  eval;       // Score for side to move
+    uint8_t  depth;      // Depth in which the entry was searched at
+    TTFlag   flag;       // How the score will be interpreted
+    Move     best_move;  // Best move found
 };
 
 class TranspositionTable {
