@@ -1,5 +1,5 @@
-#include "position.hpp"
-#include "movegen.hpp"
+#include "core/position.hpp"
+#include "core/movegen.hpp"
 
 namespace Eyra {
 

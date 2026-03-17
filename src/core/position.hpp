@@ -5,10 +5,10 @@
 #include <stdexcept>
 #include <sstream>
 #include <string_view>
-#include "type.hpp"
-#include "move.hpp"
-#include "misc.hpp"
-#include "bitboard.hpp"
+#include "core/type.hpp"
+#include "core/move.hpp"
+#include "util/misc.hpp"
+#include "core/bitboard.hpp"
 
 #include <iostream>
 

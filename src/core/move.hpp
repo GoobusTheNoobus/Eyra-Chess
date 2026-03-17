@@ -1,7 +1,7 @@
 #pragma once
 
 #include <ostream>
-#include "type.hpp"
+#include "core/type.hpp"
 #include <algorithm>
 
 namespace Eyra {

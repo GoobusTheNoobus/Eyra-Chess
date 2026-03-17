@@ -1,12 +1,12 @@
 #pragma once
-#include "type.hpp"
-#include "position.hpp"
-#include "movegen.hpp"
+#include "core/type.hpp"
+#include "core/position.hpp"
+#include "core/movegen.hpp"
 #include <chrono>
 #include <atomic>
 #include <cstring>
-#include "misc.hpp"
-#include "uci.hpp"
+#include "util/misc.hpp"
+#include "util/uci.hpp"
 
 using namespace std::chrono;
 

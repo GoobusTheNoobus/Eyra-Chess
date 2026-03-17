@@ -1,8 +1,8 @@
 #include <iostream>
-#include "misc.hpp"
-#include "bitboard.hpp"
-#include "uci.hpp"
-#include "engine.hpp"
+#include "util/misc.hpp"
+#include "core/bitboard.hpp"
+#include "util/uci.hpp"
+#include "engine/engine.hpp"
 
 using namespace Eyra;
 

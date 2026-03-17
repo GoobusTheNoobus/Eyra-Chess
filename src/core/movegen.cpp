@@ -1,4 +1,4 @@
-#include "movegen.hpp"
+#include "core/movegen.hpp"
 
 
 #include <chrono>
@@ -12,8 +12,8 @@ namespace {
 template <Color us>
 void GeneratePawnMoves(const Position& pos, MoveList& list) {
 
-    constexpr Color them = Opposite(us);
-    constexpr bool is_white = us == WHITE;
+    static constexpr Color them = Opposite(us);
+    static constexpr bool is_white = us == WHITE;
 
     
     Bitboard pieces = pos.GetBitboard(PAWN, us);
@@ -24,15 +24,15 @@ void GeneratePawnMoves(const Position& pos, MoveList& list) {
     if (!pieces) return;
 
     
-    constexpr Bitboard rank_3_from_bottom = is_white ? Bitboards::rank3 : Bitboards::rank6;
-    constexpr Bitboard promo_rank         = is_white ? Bitboards::rank8 : Bitboards::rank1;
+    static constexpr Bitboard rank_3_from_bottom = is_white ? Bitboards::rank3 : Bitboards::rank6;
+    static constexpr Bitboard promo_rank         = is_white ? Bitboards::rank8 : Bitboards::rank1;
     
     Square ep = pos.GetEPSquare();
 
     
-    constexpr int push_dir = is_white ? 8: -8;
-    constexpr int left_capture_dir = is_white ? 7 : -9;
-    constexpr int right_capture_dir = is_white ? 9 : -7;
+    static constexpr int push_dir = is_white ? 8: -8;
+    static constexpr int left_capture_dir = is_white ? 7 : -9;
+    static constexpr int right_capture_dir = is_white ? 9 : -7;
 
     
     Bitboard single_push = (is_white ? pieces << 8: pieces >> 8) & ~occ;
@@ -208,14 +208,6 @@ void GenerateAll(const Position& pos, MoveList& list) {
 void MoveGen::GenerateMoves(const Position& pos, MoveList& list) {
     pos.SideToMove() == WHITE ? GenerateAll<WHITE>(pos, list)
                               : GenerateAll<BLACK>(pos, list);
-}
-
-// Creates new movelist (deprecated because of return overhead)
-MoveList MoveGen::GenerateMoves(const Position& pos) {
-    MoveList list;
-    pos.SideToMove() == WHITE ? GenerateAll<WHITE>(pos, list) 
-                              : GenerateAll<BLACK>(pos, list);
-    return list;
 }
 
 } // namespace Eyra

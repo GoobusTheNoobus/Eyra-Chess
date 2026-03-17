@@ -1,5 +1,5 @@
-#include "uci.hpp"
-#include "engine.hpp"
+#include "util/uci.hpp"
+#include "engine/engine.hpp"
 #include <thread>
 
 

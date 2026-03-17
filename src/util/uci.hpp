@@ -1,7 +1,7 @@
 #pragma once
-#include "type.hpp"
-#include "misc.hpp"
-#include "move.hpp"
+#include "core/type.hpp"
+#include "util/misc.hpp"
+#include "core/move.hpp"
 #include <sstream>
 #include <iostream>
 

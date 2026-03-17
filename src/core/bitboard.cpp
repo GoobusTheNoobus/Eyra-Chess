@@ -1,4 +1,4 @@
-#include "bitboard.hpp"
+#include "core/bitboard.hpp"
 
 #include <iostream>
 
@@ -452,8 +452,6 @@ void Init() {
     for (Square square = A1; square < 64; ++square) {
         PrecomputeBishop(square, bishop_offset);
         PrecomputeRook(square, rook_offset);
-
-        // std::cout << "0x" << std::hex << std::uppercase << std::setw(16) << std::setfill('0') << ComputeRookMask(square) << "ULL," << (((square + 1) % 4 == 0) ? "\n" : "" );
 
         bishop_offset += 1 << bishop_relevancy[square];
         rook_offset   += 1 << rook_relevancy[square];
