@@ -1,6 +1,7 @@
 #pragma once
 
-namespace Eyra {
+namespace Eyra 
+{
 
 // Miscellaneous info
 constexpr const char* ENGINE_NAME    = "Eyra Chess Engine ";

@@ -8,7 +8,8 @@ using namespace Eyra;
 
 
 
-int main () {
+int main () 
+{
 
     Bitboards::Init();
 

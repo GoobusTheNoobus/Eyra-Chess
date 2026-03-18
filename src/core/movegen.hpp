@@ -6,11 +6,12 @@
 #include <iostream>
 
 
-namespace Eyra::MoveGen {
+namespace Eyra::MoveGen 
+{
 
 void GenerateMoves (const Position& pos, MoveList& list);
 
-} // namespace Eyra::MoveGen
+} 
 
 
 

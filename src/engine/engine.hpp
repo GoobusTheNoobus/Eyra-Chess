@@ -10,10 +10,12 @@
 
 using namespace std::chrono;
 
-namespace Eyra {
+namespace Eyra 
+{
 
 // How TTScores will be interpreted
-enum class TTFlag: uint8_t {
+enum class TTFlag: uint8_t 
+{
     NONE,
     EXACT,
     LOWERBOUND,
@@ -21,7 +23,8 @@ enum class TTFlag: uint8_t {
 };
 
 
-struct TranspositionEntry {
+struct TranspositionEntry 
+{
     Key      key;        // Full Zobrist key
     int16_t  eval;       // Score for side to move
     uint8_t  depth;      // Depth in which the entry was searched at
@@ -29,7 +32,8 @@ struct TranspositionEntry {
     Move     best_move;  // Best move found
 };
 
-class TranspositionTable {
+class TranspositionTable 
+{
 
 public:
     explicit TranspositionTable(size_t mb);
@@ -47,7 +51,8 @@ private:
 
 };
 
-struct SearchInfo {
+struct SearchInfo 
+{
     steady_clock::time_point start_time;
     uint64_t nodes = 0;
     std::atomic<bool> stop{false};
@@ -64,12 +69,14 @@ struct SearchInfo {
 
 };
 
-struct SearchResults {
+struct SearchResults 
+{
     Move best_move = 0;
     int score = 0;
 };
 
-namespace Engine {
+namespace Engine 
+{
 
     constexpr int MAX_DEPTH = 32;
     constexpr int KILLERS_PER_DEPTH = 2;
@@ -80,11 +87,13 @@ namespace Engine {
     extern Move history[COLORS][BOARD_SIZE][BOARD_SIZE]; // For History Heuristics: store moves that has previously caused beta cutoff
     
 
-    inline void ResetKillers () {
+    inline void ResetKillers() 
+    {
         std::memset(killers, 0, sizeof(killers));
     }
 
-    inline void StoreKiller (Move move, int ply) {
+    inline void StoreKiller(Move move, int ply) 
+    {
         // If killer already exist, there is no need to store it.
         if (killers[ply][0] == move) return;
         if (killers[ply][1] == move) return;

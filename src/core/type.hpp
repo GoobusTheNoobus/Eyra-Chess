@@ -22,22 +22,26 @@ using Key            = uint64_t;
 #endif
 
 // Enums 
-enum PieceType : uint8_t {
+enum PieceType : uint8_t 
+{
     PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING
 };
 
-enum Color : uint8_t {
+enum Color : uint8_t 
+{
     WHITE,
     BLACK
 };
 
-enum Piece: uint8_t {
+enum Piece: uint8_t 
+{
     W_PAWN, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING,
     B_PAWN, B_KNIGHT, B_BISHOP, B_ROOK, B_QUEEN, B_KING,
     NO_PIECE
 };
 
-enum Square: uint8_t{
+enum Square: uint8_t
+{
     A1, B1, C1, D1, E1, F1, G1, H1,
     A2, B2, C2, D2, E2, F2, G2, H2,
     A3, B3, C3, D3, E3, F3, G3, H3,
@@ -55,7 +59,8 @@ inline constexpr Color PieceColor (Piece piece) { return Color(piece / 6); }
 inline constexpr Piece MakePiece (PieceType pt, Color c) { return Piece(pt + 6 * c); }
 inline constexpr PieceType TypeOf (Piece piece) { return PieceType(piece % 6); }
 
-inline std::string SquareToString (Square square) {
+inline std::string SquareToString (Square square) 
+{
     char file = 'a' + (square & 7);
     char rank = '1' + (square >> 3);
 

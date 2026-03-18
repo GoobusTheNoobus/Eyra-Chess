@@ -26,34 +26,33 @@
 #endif
 
 
-namespace Eyra::Bitboards {
+namespace Eyra::Bitboards 
+{
 
+    void Init();
 
+    constexpr Bitboard rank1 = 0xFF;
+    constexpr Bitboard rank2 = rank1 << 8;
+    constexpr Bitboard rank3 = rank2 << 8;
+    constexpr Bitboard rank4 = rank3 << 8;
+    constexpr Bitboard rank5 = rank4 << 8;
+    constexpr Bitboard rank6 = rank5 << 8;
+    constexpr Bitboard rank7 = rank6 << 8;
+    constexpr Bitboard rank8 = rank7 << 8;
 
-void Init();
+    constexpr Bitboard file_a = 0x0101010101010101ULL;
+    constexpr Bitboard file_h = 0x8080808080808080ULL;
 
-constexpr Bitboard rank1 = 0xFF;
-constexpr Bitboard rank2 = rank1 << 8;
-constexpr Bitboard rank3 = rank2 << 8;
-constexpr Bitboard rank4 = rank3 << 8;
-constexpr Bitboard rank5 = rank4 << 8;
-constexpr Bitboard rank6 = rank5 << 8;
-constexpr Bitboard rank7 = rank6 << 8;
-constexpr Bitboard rank8 = rank7 << 8;
+    Bitboard SquareBB (Square square);
 
-constexpr Bitboard file_a = 0x0101010101010101ULL;
-constexpr Bitboard file_h = 0x8080808080808080ULL;
+    Bitboard GetRookAttacks   (Square square, Bitboard occupancy);
+    Bitboard GetBishopAttacks (Square square, Bitboard occupancy);
 
-Bitboard SquareBB (Square square);
-
-Bitboard GetRookAttacks   (Square square, Bitboard occupancy);
-Bitboard GetBishopAttacks (Square square, Bitboard occupancy);
-
-template <Color c>
-Bitboard GetPawnAttacks   (Square square);
-Bitboard GetPawnAttacks   (Square square, Color c);
-Bitboard GetKnightAttacks (Square square);
-Bitboard GetKingAttacks   (Square square);
+    template <Color c>
+    Bitboard GetPawnAttacks   (Square square);
+    Bitboard GetPawnAttacks   (Square square, Color c);
+    Bitboard GetKnightAttacks (Square square);
+    Bitboard GetKingAttacks   (Square square);
 
 
 } // namespace Eyra::Bitboards

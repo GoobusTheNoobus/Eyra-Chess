@@ -1,6 +1,6 @@
 *.exe
 *.o
 *.out
-.vscode/
+".vscode"
 *.json
 bin

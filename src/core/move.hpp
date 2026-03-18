@@ -8,7 +8,8 @@ namespace Eyra {
 
 // ======================= Move Functions =======================
 
-enum MoveFlag : uint8_t {
+enum MoveFlag: uint8_t 
+{
     NORMAL,
     DOUBLE_PUSH,
     CASTLING,
@@ -20,7 +21,8 @@ enum MoveFlag : uint8_t {
 };
 
 // Basic Move Function
-FORCE_INLINE Move CreateMove(Square from, Square to, MoveFlag flag) {
+inline Move CreateMove(Square from, Square to, MoveFlag flag) 
+{
     return
     (((from) & 0x3F) | 
     (((to) & 0x3F) << 6) |  
@@ -28,21 +30,29 @@ FORCE_INLINE Move CreateMove(Square from, Square to, MoveFlag flag) {
 }
 
 // Inline functions for specific moves: only use these
-FORCE_INLINE Move CreateNormalMove (Square from, Square to) { return CreateMove(from, to, NORMAL); }
-FORCE_INLINE Move CreateDoublePush (Square from, Square to) { return CreateMove(from, to, DOUBLE_PUSH); }
-FORCE_INLINE Move CreateCastling   (Square from, Square to) { return CreateMove(from, to, CASTLING); }
-FORCE_INLINE Move CreateEnPassant  (Square from, Square to) { return CreateMove(from, to, EN_PASSANT); }
+inline Move CreateNormalMove (Square from, Square to) { return CreateMove(from, to, NORMAL); }
+inline Move CreateDoublePush (Square from, Square to) { return CreateMove(from, to, DOUBLE_PUSH); }
+inline Move CreateCastling   (Square from, Square to) { return CreateMove(from, to, CASTLING); }
+inline Move CreateEnPassant  (Square from, Square to) { return CreateMove(from, to, EN_PASSANT); }
 template <PieceType pt>
-FORCE_INLINE Move CreatePromoMove  (Move base) { return base | (NPROMO + (pt - KNIGHT)) << 12; }
+inline Move CreatePromoMove  (Move base) { return base | (NPROMO + (pt - KNIGHT)) << 12; }
 
-FORCE_INLINE Square GetFrom     (Move move) { return Square(move & 0x3F); }
-FORCE_INLINE Square GetTo       (Move move) { return Square((move >> 6) & 0x3F); }
-FORCE_INLINE MoveFlag GetFlag   (Move move) { return MoveFlag((move >> 12) & 0xF); }
+inline Square GetFrom     (Move move) { return Square(move & 0x3F); }
+inline Square GetTo       (Move move) { return Square((move >> 6) & 0x3F); }
+inline MoveFlag GetFlag   (Move move) { return MoveFlag((move >> 12) & 0xF); }
 
-FORCE_INLINE std::string MoveToString(Move move) {
-    char flag_promo_char[] = "    nbrq";
+inline std::string MoveToString(Move move) 
+{
+    
 
-    return SquareToString(GetFrom(move)) + SquareToString(GetTo(move)) + flag_promo_char[GetFlag(move)];
+    if (GetFlag(move) >= NPROMO) {
+        static const char flag_promo_char[] = "nbrq";
+        return SquareToString(GetFrom(move)) + SquareToString(GetTo(move)) + flag_promo_char[GetFlag(move) - NPROMO];
+    } else {
+        return SquareToString(GetFrom(move)) + SquareToString(GetTo(move));
+    }
+
+    
 }
 
 struct MoveList {
@@ -77,7 +87,8 @@ struct MoveList {
 };
 
 // So you can do std::cout << move_list...
-FORCE_INLINE std::ostream& operator<< (std::ostream& os, const MoveList& list) {
+inline std::ostream& operator<< (std::ostream& os, const MoveList& list) 
+{
     os << (list.ToString());
     return os;
 }
