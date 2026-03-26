@@ -91,7 +91,7 @@ namespace Engine
     extern SearchInfo search_info;
     extern Position position;
     extern Move killers[MAX_DEPTH][KILLERS_PER_DEPTH]; // Store 2 killers per each depth
-    extern Move history[COLORS][BOARD_SIZE][BOARD_SIZE]; // For History Heuristics: store moves that has previously caused beta cutoff
+    extern int history[COLORS][BOARD_SIZE][BOARD_SIZE]; // For History Heuristics: store moves that has previously caused beta cutoff
 
     extern TranspositionTable tt;
     
@@ -120,7 +120,7 @@ namespace Engine
     void PerftDivide (int depth);
     int Perft(int depth);
 
-    SearchResults GetBestMove (Position& pos, int depth, Move pv);
+    SearchResults GetBestMove (Position& pos, int depth, Move pv, int alpha, int beta);
     void Go (int depth_limit, int movetime);
 
 } // namespace Engine

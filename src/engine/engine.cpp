@@ -86,18 +86,18 @@ namespace
     {
          0,   0,   0,   0,   0,   0,   0,   0,
        -35,  -1, -20, -23, -34,  24,  38, -22,
-       -26,  -4,  -4, -10,   3,   3,  33, -12,
-       -27,  -2,  -5,  40,  57,   6,  10, -25,
-       -14,  13,   6,  60,  73,  12,  17, -23,
-        -6,   7,  26,  76,  85,  56,  25, -20,
-        98, 134,  61, 125, 147, 126,  34, -11,
+       -26,  -4,  -4,   0,   3,   3,  33, -12,
+       -27,  -2,  -5,  20,  27,   6,  10, -25,
+       -14,  13,   6,  30,  33,  12,  17, -23,
+        -6,   7,  26,  46,  55,  56,  25, -20,
+        98, 134,  61, 105, 147, 126,  34, -11,
          0,   0,   0,   0,   0,   0,   0,   0
     },
     // KNIGHT
     {
-      -105, -21, -58, -33, -17, -28, -19, -23,
+      -105, -25, -58, -33, -17, -28, -13, -23,
        -29, -53, -12,  -3,  -1,  18, -14, -19,
-       -23,  -9,  15,  10,  19,  17,  25, -16,
+       -23,  -9,  16,  10,  10,  14,  25, -16,
        -13,   4,  16,  13,  28,  19,  21,  -8,
         -9,  17,  19,  53,  37,  69,  18,  22,
        -47,  60,  37,  65,  84, 129,  73,  44,
@@ -259,7 +259,7 @@ namespace Engine
             return 0;
 
         float weight = EGWeight(pos);
-        int score = 0;
+        int score = 40 - (1 - weight) * 30;
 
         // Evaluates Material AND Mobility
         auto eval_piece = [&](Bitboard bb, PieceType pt, bool white)
@@ -276,6 +276,7 @@ namespace Engine
 
                 int val = static_cast<int>(weight * eg + (1 - weight) * mg);
 
+                
                 /*
                 // Mobility
                 if (pt == KNIGHT) 
@@ -314,6 +315,39 @@ namespace Engine
         eval_piece(pos.GetBitboard(B_QUEEN),  QUEEN,  false);
         eval_piece(pos.GetBitboard(B_KING),   KING,   false);
 
+        // Pawn structure
+        for (int file = 0; file < 8; ++file)
+        {
+            static constexpr int double_pawn_deduction[] = {-30, -2, -7, -21, -16, -19, -3, -32};
+
+            Bitboard white_pawns = pos.GetBitboard(W_PAWN);
+            Bitboard black_pawns = pos.GetBitboard(B_PAWN);
+
+            // Double Pawn
+            if (popcount(Bitboards::files[file] & white_pawns) >= 2)
+            {
+                score += double_pawn_deduction[file];
+
+                // TODO: Isolated Pawns
+            }
+
+            if (popcount(Bitboards::files[file] & black_pawns) >= 2)
+            {
+                score -= double_pawn_deduction[file];
+
+                // TODO: Isolated Pawns
+            }
+        }
+
+        if (weight < 0.4 && !(pos.GetBitboard(W_QUEEN) & Bitboards::SquareBB(D1)))
+        {
+            score -= 12;
+        }
+
+        if (weight < 0.4 && !(pos.GetBitboard(B_QUEEN) & Bitboards::SquareBB(D8)))
+        {
+            score += 12;
+        }
         
         // Normalize score if early in the game
         score = score / (2 - weight);
@@ -333,7 +367,7 @@ namespace Engine
     SearchInfo search_info;
     Position position;
     Move killers[MAX_DEPTH][KILLERS_PER_DEPTH];
-    Move history[COLORS][BOARD_SIZE][BOARD_SIZE];
+    int history[COLORS][BOARD_SIZE][BOARD_SIZE];
 
     TranspositionTable tt(16);
 
@@ -366,11 +400,12 @@ namespace Engine
             if (move == tt_move) return 9'999'999;
 
             Piece captured = pos.GetPiece(GetTo(move));
+            Piece moved    = pos.GetPiece(GetFrom(move));
             MoveFlag flag = GetFlag(move);
 
             if (pos.GetPiece(GetTo(move)) != NO_PIECE) {
                 int victim = mg_value[TypeOf(captured)];
-                int attacker = mg_value[TypeOf(pos.GetPiece(GetFrom(move)))];
+                int attacker = mg_value[TypeOf(moved)];
 
                 return 1'000'000 + (10'000 * victim) + (1000 - attacker);
             }
@@ -383,6 +418,11 @@ namespace Engine
 
             if (move == killer_a) return 800'000;
             if (move == killer_b) return 799'999;
+
+            if (captured == NO_PIECE)
+            {
+                return 600'000 + history[PieceColor(moved)][GetFrom(move)][GetTo(move)];
+            }
 
             return 0;
 
@@ -400,6 +440,14 @@ namespace Engine
             std::swap(*current, *best);
 
             return *current;
+        }
+
+        // Call every 100k nodes
+        void DecayHistoryTable() {
+            for (int c = 0; c < COLORS; ++c) 
+            for (int from = 0; from < 64; ++from)
+            for (int to = 0; to < 64; ++to)
+            history[c][from][to] /= 2;
         }
 
 
@@ -591,6 +639,11 @@ namespace Engine
 
             ++legal_moves;
 
+
+            if (captured == NO_PIECE && score < alpha) {
+                history[side_moving][GetFrom(move)][GetTo(move)] -= depth * depth;
+            }
+
             if (score > alpha) 
             {
                 alpha = score;
@@ -603,6 +656,7 @@ namespace Engine
 
                 if (captured == NO_PIECE) {
                     StoreKiller(move, plies_from_root);
+                    history[side_moving][GetFrom(move)][GetTo(move)] += depth * depth;
                 }
 
                 break;
@@ -611,6 +665,11 @@ namespace Engine
             if (search_info.nodes % 1024 == 0 && ShouldStop()) {
                 search_info.stop.store(true, std::memory_order_relaxed);
                 return 0;
+            }
+
+            if (search_info.nodes % 1'000'000 == 0)
+            {
+                DecayHistoryTable();
             }
 
             
@@ -661,7 +720,7 @@ namespace Engine
 
 
 
-    SearchResults GetBestMove(Position& pos, int depth, Move pv) 
+    SearchResults GetBestMove(Position& pos, int depth, Move pv, int alpha, int beta) 
     {
         Move best_move = 0;
         int best_score = -INF;
@@ -689,7 +748,7 @@ namespace Engine
                 continue;
             }
 
-            int score = -Search(pos, depth - 1, -INF, INF, true);
+            int score = -Search(pos, depth - 1, -beta, -alpha, true);
 
 
 
@@ -725,12 +784,38 @@ namespace Engine
         Move best_move = 0;
         int eval = 0;
 
+        int aspiration_window = 50;
+        
+
         for (int current_depth = 1; current_depth <= depth; ++current_depth) 
         {
 
             if (search_info.stop.load(std::memory_order_relaxed)) break;
 
-            SearchResults result = GetBestMove(position, current_depth, best_move);
+
+            SearchResults result;
+
+            int window = aspiration_window;
+
+            while (true)
+            {
+                int alpha = eval - window;
+                int beta  = eval + window;
+
+                result = GetBestMove(position, current_depth, best_move, alpha, beta);
+
+                if (result.score <= alpha)
+                {
+                    window *= 2;
+                }
+                else if (result.score >= beta)
+                {
+                    window *= 2;
+                }
+                else break;
+            }
+
+            
 
 
             if (result.best_move != 0) 

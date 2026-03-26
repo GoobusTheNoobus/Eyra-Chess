@@ -40,6 +40,18 @@ namespace Eyra::Bitboards
     constexpr Bitboard file_a = 0x0101010101010101ULL;
     constexpr Bitboard file_h = 0x8080808080808080ULL;
 
+    constexpr Bitboard files[8] = 
+    {
+        file_a << 0,
+        file_a << 1,
+        file_a << 2,
+        file_a << 3,
+        file_a << 4,
+        file_a << 5,
+        file_a << 6,
+        file_a << 7,
+    };
+
     Bitboard SquareBB (Square square);
 
     Bitboard GetRookAttacks   (Square square, Bitboard occupancy);
