@@ -8,10 +8,16 @@
 #include "util/misc.hpp"
 #include "util/uci.hpp"
 
+#include "nnue/probe.h"
+
 using namespace std::chrono;
 
 namespace Eyra 
 {
+
+constexpr int MAX_CP = 10000;
+constexpr int INF    = 30001;
+constexpr int MATE_EVAL = 30000;
 
 // How TTScores will be interpreted
 enum class TTFlag: uint8_t 
@@ -88,6 +94,8 @@ namespace Engine
     constexpr int MAX_DEPTH = 32;
     constexpr int KILLERS_PER_DEPTH = 2;
 
+    
+
     extern SearchInfo search_info;
     extern Position position;
     extern Move killers[MAX_DEPTH][KILLERS_PER_DEPTH]; // Store 2 killers per each depth
@@ -112,6 +120,7 @@ namespace Engine
     }
     
     int Evaluate (Position& pos);
+    int NNUEEval (Position& pos);
     float EGWeight (Position& pos);
 
     int Search (Position& pos, int depth, int alpha, int beta, bool can_null_prune);
@@ -122,6 +131,11 @@ namespace Engine
 
     SearchResults GetBestMove (Position& pos, int depth, Move pv, int alpha, int beta);
     void Go (int depth_limit, int movetime);
+
+    inline void InitNNUE(const char* filename, const char* filename2)
+    {
+        Stockfish::Probe::init(filename, filename2);
+    }
 
 } // namespace Engine
 

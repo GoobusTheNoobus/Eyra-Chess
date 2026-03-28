@@ -3,6 +3,7 @@
 
 
 
+
 namespace Eyra 
 {
 
@@ -323,7 +324,7 @@ namespace Engine
             Bitboard white_pawns = pos.GetBitboard(W_PAWN);
             Bitboard black_pawns = pos.GetBitboard(B_PAWN);
 
-            // Double Pawn
+            // Double Pawns
             if (popcount(Bitboards::files[file] & white_pawns) >= 2)
             {
                 score += double_pawn_deduction[file];
@@ -360,6 +361,56 @@ namespace Engine
         return score;
     }
 
+    int NNUEEval(Position& pos)
+    {
+        // Maps how pieces are stored in EyraChess to how NNUE processes it
+        // White Pawn = 1 White Knight = 2.....
+        // Black Pawn = 9 Black Knight = 10....
+        // 0 is empty
+        static constexpr int nnue_pieces[] = {1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 0};
+
+        int pieces[32] = {};
+        int squares[32] = {};
+        int piece_count = 2;
+
+        for (Square square = A1; square < NO_SQUARE; ++square)
+        {
+            Piece piece = pos.GetPiece(square);
+
+            
+            if (piece != NO_PIECE && TypeOf(piece) != KING)
+            {
+                pieces[piece_count] = nnue_pieces[piece];
+                squares[piece_count] = square;
+                ++piece_count;
+            }
+
+            else if (piece == W_KING)
+            {
+                pieces[0] = nnue_pieces[piece];
+                squares[0] = square;
+            }
+
+            else if (piece == B_KING)
+            {
+                pieces[1] = nnue_pieces[piece];
+                squares[1] = square;
+            }
+            
+            
+            
+        }
+
+        bool side = pos.SideToMove() == WHITE;
+        int rule50 = pos.GetRuleFifty();
+
+        /// return Stockfish::Probe::eval(pieces, squares, piece_count, side, rule50);
+        // return Stockfish::Probe::eval(pieces, squares, piece_count, side, rule50);
+
+        return Stockfish::Probe::eval(pieces, squares, piece_count, side, rule50);
+
+
+    }
     
 
     // ======================= Engine States =======================
@@ -369,7 +420,7 @@ namespace Engine
     Move killers[MAX_DEPTH][KILLERS_PER_DEPTH];
     int history[COLORS][BOARD_SIZE][BOARD_SIZE];
 
-    TranspositionTable tt(16);
+    TranspositionTable tt(64);
 
     // ======================= Helper Functions =======================
 
@@ -464,10 +515,10 @@ namespace Engine
             return 0;
         
         if (depth == 0) 
-            return Evaluate(pos);
+            return NNUEEval(pos);
         
 
-        int standpat = Evaluate(pos);
+        int standpat = NNUEEval(pos);
 
         // Position is too good
         if (standpat >= beta) return beta;
@@ -555,7 +606,7 @@ namespace Engine
             // if (alpha >= beta && entry->flag == TTFlag::EXACT) return tt_score;
         } 
         
-
+        int static_eval = NNUEEval(pos);
         
 
         MoveList moves;
@@ -604,15 +655,20 @@ namespace Engine
                 continue;
             }
 
-            int score;
+            // LMP
+            if (legal_moves > 5 && depth < 3 && static_eval + 120 < alpha)
+            {
+                pos.UndoMove();
+                continue;
+            }
 
-            
+            int score;
 
             // Late Move Reduction
             if (legal_moves > 3 && depth >= 3 && !in_check && captured == NO_PIECE && GetFlag(move) < NPROMO) 
             {
                 // Search at a reduced depth
-                int reduction = std::min(std::max(depth / 2, 1), 2);
+                int reduction = 1;
                 score = -Search(pos, depth - 1 - reduction, -alpha - 1, -alpha, true);
 
                 // If move is good (raises alpha) research at full depth

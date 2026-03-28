@@ -6,10 +6,13 @@ CXXFLAGS = -std=c++20 -g -O3 -march=native -mbmi2 \
            -fno-semantic-interposition \
            -flto \
            -fomit-frame-pointer \
-           -Isrc
+           -Isrc \
+           
 
 SRC = $(wildcard src/*.cpp) \
-      $(wildcard src/*/*.cpp)
+      $(wildcard src/*/*.cpp) \
+      $(wildcard src/*/*/*.cpp) \
+      $(wildcard src/*/*/*/*.cpp)
 
 OBJ = $(patsubst src/%.cpp, bin/%.o, $(SRC))
 

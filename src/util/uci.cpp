@@ -263,6 +263,14 @@ namespace Eyra
             else if (command == "d") 
                 PrintPosition();
 
+            else if (command == "eval")
+            {
+                PrintPosition();
+
+                std::cout << "Classical: " << Engine::Evaluate(Engine::position) << std::endl;
+                std::cout << "NNUE:      " << Engine::NNUEEval(Engine::position) << std::endl;
+            }
+
             else if (command == "quit") 
             {
                 Stop();
