@@ -268,7 +268,7 @@ namespace Eyra
                 PrintPosition();
 
                 std::cout << "Classical: " << Engine::Evaluate(Engine::position) << std::endl;
-                std::cout << "NNUE:      " << Engine::NNUEEval(Engine::position) << std::endl;
+                std::cout << "NNUE:       NaN" << std::endl;
             }
 
             else if (command == "quit") 

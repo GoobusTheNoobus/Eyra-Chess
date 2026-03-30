@@ -45,6 +45,8 @@ namespace Eyra
         CastlingRights GetCastlingRights() const;
         Key      Hash() const;
 
+        int* GetNNUEBoard() const;
+
         void ParseFEN(std::string_view fen);
         std::string ToString() const;
 
@@ -65,6 +67,7 @@ namespace Eyra
         bool CanCastleKingside() const;
         bool CanCastleQueenside() const;
 
+
     private:
         // Game history
         Move move_history[256];
@@ -73,6 +76,7 @@ namespace Eyra
 
         // Board and pieces
         Piece pieces[64];
+        
         Bitboard bitboards[12];
         Bitboard color_bitboards[2];
         Bitboard occupancy;

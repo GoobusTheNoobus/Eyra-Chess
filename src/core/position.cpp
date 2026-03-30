@@ -65,6 +65,8 @@ namespace Eyra {
         return hash;
     }
 
+    
+
     // ======================= Basic Editting Functions =======================
 
     void Position::ClearPosition() 
@@ -103,6 +105,8 @@ namespace Eyra {
 
     void Position::ClearSquare (Square square) 
     {
+        
+
         if (pieces[square] == NO_PIECE) return;
 
         Piece piece = pieces[square];
@@ -131,6 +135,9 @@ namespace Eyra {
         Bitboard square_bb = Bitboards::SquareBB(square);
 
         hash ^= zobrist.GetPieceKey(piece, square);
+
+
+        static constexpr int nnue_pieces[] = {1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 0};
 
         pieces[square] = piece;
 

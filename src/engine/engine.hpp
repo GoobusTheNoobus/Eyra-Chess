@@ -8,7 +8,6 @@
 #include "util/misc.hpp"
 #include "util/uci.hpp"
 
-#include "nnue/probe.h"
 
 using namespace std::chrono;
 
@@ -120,7 +119,6 @@ namespace Engine
     }
     
     int Evaluate (Position& pos);
-    int NNUEEval (Position& pos);
     float EGWeight (Position& pos);
 
     int Search (Position& pos, int depth, int alpha, int beta, bool can_null_prune);
@@ -132,10 +130,6 @@ namespace Engine
     SearchResults GetBestMove (Position& pos, int depth, Move pv, int alpha, int beta);
     void Go (int depth_limit, int movetime);
 
-    inline void InitNNUE(const char* filename, const char* filename2)
-    {
-        Stockfish::Probe::init(filename, filename2);
-    }
 
 } // namespace Engine
 

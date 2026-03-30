@@ -38,7 +38,7 @@ void TranspositionTable::Store(Key key, int eval, int depth, TTFlag flag, Move b
 
 
 
-    if (entry.key != key || (entry.depth < depth && depth > 4)) {
+    if (entry.key != key || (entry.depth < depth && depth >= 3)) {
 
         if (entry.flag == TTFlag::NONE) {
             store_count++;
@@ -260,7 +260,7 @@ namespace Engine
             return 0;
 
         float weight = EGWeight(pos);
-        int score = 40 - (1 - weight) * 30;
+        int score = 50 - (1 - weight) * 30;
 
         // Evaluates Material AND Mobility
         auto eval_piece = [&](Bitboard bb, PieceType pt, bool white)
@@ -361,56 +361,7 @@ namespace Engine
         return score;
     }
 
-    int NNUEEval(Position& pos)
-    {
-        // Maps how pieces are stored in EyraChess to how NNUE processes it
-        // White Pawn = 1 White Knight = 2.....
-        // Black Pawn = 9 Black Knight = 10....
-        // 0 is empty
-        static constexpr int nnue_pieces[] = {1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 0};
-
-        int pieces[32] = {};
-        int squares[32] = {};
-        int piece_count = 2;
-
-        for (Square square = A1; square < NO_SQUARE; ++square)
-        {
-            Piece piece = pos.GetPiece(square);
-
-            
-            if (piece != NO_PIECE && TypeOf(piece) != KING)
-            {
-                pieces[piece_count] = nnue_pieces[piece];
-                squares[piece_count] = square;
-                ++piece_count;
-            }
-
-            else if (piece == W_KING)
-            {
-                pieces[0] = nnue_pieces[piece];
-                squares[0] = square;
-            }
-
-            else if (piece == B_KING)
-            {
-                pieces[1] = nnue_pieces[piece];
-                squares[1] = square;
-            }
-            
-            
-            
-        }
-
-        bool side = pos.SideToMove() == WHITE;
-        int rule50 = pos.GetRuleFifty();
-
-        /// return Stockfish::Probe::eval(pieces, squares, piece_count, side, rule50);
-        // return Stockfish::Probe::eval(pieces, squares, piece_count, side, rule50);
-
-        return Stockfish::Probe::eval(pieces, squares, piece_count, side, rule50);
-
-
-    }
+    
     
 
     // ======================= Engine States =======================
@@ -470,9 +421,11 @@ namespace Engine
             if (move == killer_a) return 800'000;
             if (move == killer_b) return 799'999;
 
+            static constexpr int flag_bonus[] = {0, 2000, 1500, 2300};
+
             if (captured == NO_PIECE)
             {
-                return 600'000 + history[PieceColor(moved)][GetFrom(move)][GetTo(move)];
+                return history[PieceColor(moved)][GetFrom(move)][GetTo(move)];
             }
 
             return 0;
@@ -515,16 +468,17 @@ namespace Engine
             return 0;
         
         if (depth == 0) 
-            return NNUEEval(pos);
+            return Evaluate(pos);
         
 
-        int standpat = NNUEEval(pos);
+        int standpat = Evaluate(pos);
 
         // Position is too good
         if (standpat >= beta) return beta;
 
         alpha = std::max(alpha, standpat);
 
+        bool in_check = pos.IsInCheck();
         Color side_moving = pos.SideToMove();
 
         MoveList moves;
@@ -532,7 +486,7 @@ namespace Engine
 
         for (Move move: moves) 
         {
-            bool is_noisy = (pos.GetPiece(GetTo(move)) != NO_PIECE || GetFlag(move) >= NPROMO);
+            bool is_noisy = (pos.GetPiece(GetTo(move)) != NO_PIECE || GetFlag(move) >= NPROMO || in_check);
             if (!is_noisy) continue;
 
             int gain = std::abs(mg_value[TypeOf(pos.GetPiece(GetTo(move)))])  - std::abs(mg_value[TypeOf(pos.GetPiece(GetFrom(move)))] + 100);
@@ -589,7 +543,9 @@ namespace Engine
         TranspositionEntry* entry = tt.Probe(pos.Hash());
         Move tt_move = 0;
 
-        if (entry != nullptr && entry->key == pos.Hash() && entry->depth >= depth) 
+        int static_eval;
+
+        if (entry != nullptr && entry->key == pos.Hash() && entry->depth >= depth && entry->flag != TTFlag::NONE) 
         {
             tt_move = entry->best_move;
 
@@ -603,10 +559,17 @@ namespace Engine
             if (entry->flag == TTFlag::LOWERBOUND) alpha = std::max<int>(alpha, tt_score);
             if (entry->flag == TTFlag::UPPERBOUND) beta  = std::min<int>(beta, tt_score);
 
-            // if (alpha >= beta && entry->flag == TTFlag::EXACT) return tt_score;
-        } 
+            static_eval = tt_score;
+
+            
+        } else
+        {
+            static_eval = Evaluate(pos);
+        }
         
-        int static_eval = NNUEEval(pos);
+        
+
+        
         
 
         MoveList moves;
@@ -647,7 +610,12 @@ namespace Engine
             
             Move move = *m;
             Piece captured = pos.GetPiece(GetTo(move));
+
+            
+
             pos.MakeMove(move);
+
+            
 
             // Filter moves that put the moving side into check
             if (pos.IsInCheck(side_moving)) {
@@ -655,17 +623,47 @@ namespace Engine
                 continue;
             }
 
-            // LMP
-            if (legal_moves > 5 && depth < 3 && static_eval + 120 < alpha)
+            bool is_noisy = GetFlag(move) >= NPROMO || // Promotion
+                            pos.GetPiece(GetTo(move)) != NO_PIECE || // Capture
+                            pos.IsInCheck() || // Gives Check
+                            GetFlag(move) == EN_PASSANT; // Always search en passant because why not
+
+            
+             // Futility Pruning
+            if (depth <= 3 && !is_noisy && !in_check)
             {
+                int margin = 100 * depth;
+
+                if (static_eval + margin <= alpha)
+                {
+
+                    flag = TTFlag::LOWERBOUND;
+                    pos.UndoMove();
+                    continue;
+                }
+                    
+            }
+
+            // Late Move Pruning
+            // Basically we put our faith in move ordering to put all the bad moves last
+            if (depth <= 3 && !in_check && !is_noisy && legal_moves > 5 + depth * 3)
+            {
+                flag = TTFlag::LOWERBOUND;
                 pos.UndoMove();
                 continue;
             }
+                
 
             int score;
+            
+           
 
+
+
+
+            
             // Late Move Reduction
-            if (legal_moves > 3 && depth >= 3 && !in_check && captured == NO_PIECE && GetFlag(move) < NPROMO) 
+            if (legal_moves > 3 && depth >= 3 && !in_check && !is_noisy) 
             {
                 // Search at a reduced depth
                 int reduction = 1;
@@ -680,7 +678,9 @@ namespace Engine
             
             else 
             {
+                
                 score = -Search(pos, depth - 1, -beta, -alpha, true);
+                
             }
 
             
@@ -696,7 +696,7 @@ namespace Engine
             ++legal_moves;
 
 
-            if (captured == NO_PIECE && score < alpha) {
+            if (captured == NO_PIECE && score + 100 < alpha) {
                 history[side_moving][GetFrom(move)][GetTo(move)] -= depth * depth;
             }
 
@@ -723,7 +723,7 @@ namespace Engine
                 return 0;
             }
 
-            if (search_info.nodes % 1'000'000 == 0)
+            if (search_info.nodes % 10'000'000 == 0)
             {
                 DecayHistoryTable();
             }
@@ -892,11 +892,11 @@ namespace Engine
             position.MakeMove(best_move);
 
             int i = 0;
-            for (i = 0; i < depth - 2; ++i) 
+            for (i = 0; i < depth + 2; ++i) 
             {
                 TranspositionEntry* entry = tt.Probe(position.Hash());
 
-                if (entry != nullptr && position.IsLegal(entry->best_move) && entry->flag == TTFlag::EXACT) 
+                if (entry != nullptr && position.IsLegal(entry->best_move)) 
                 {
                     position.MakeMove(entry->best_move);
                     pv.push_back(entry->best_move);
