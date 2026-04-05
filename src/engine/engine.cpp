@@ -1,7 +1,10 @@
 #include "engine/engine.hpp"
 #include "core/bitboard.hpp"
 
+#define USE_MOBILITY_EVAL false
+#define USE_QSEARCH true
 
+#define USE_ASPIRATION false
 
 
 namespace Eyra 
@@ -36,9 +39,10 @@ void TranspositionTable::Store(Key key, int eval, int depth, TTFlag flag, Move b
     // - If depth is deeper
     // - If key is different
 
+    
 
-
-    if (entry.key != key || (entry.depth < depth && depth >= 3)) {
+    if ((entry.key != key || entry.depth < depth) && depth > 1) 
+    {
 
         if (entry.flag == TTFlag::NONE) {
             store_count++;
@@ -81,13 +85,14 @@ namespace
     constexpr int mg_value[6] = {82, 337, 365, 477, 1025, 0};
     constexpr int eg_value[6] = {94, 281, 297, 512,  936, 0};
 
+    
     constexpr int mg_pst[6][64] =
     {
     // PAWN
     {
          0,   0,   0,   0,   0,   0,   0,   0,
-       -35,  -1, -20, -23, -34,  24,  38, -22,
-       -26,  -4,  -4,   0,   3,   3,  33, -12,
+       -35,  -1, -20, -33, -34,  24,  38, -22,
+       -26,  -4,  -4,   5,   3,   3,  33, -12,
        -27,  -2,  -5,  20,  27,   6,  10, -25,
        -14,  13,   6,  30,  33,  12,  17, -23,
         -6,   7,  26,  46,  55,  56,  25, -20,
@@ -110,7 +115,7 @@ namespace
        -33,  -3, -14, -21, -13,   0, -39, -21,
          4,  15,  16,   0,   7,  21,  33,   1,
          0,  15,  15,  15,  14,  27,  18,  10,
-        -6,  13,  13,  26,  34,  12,  10,   4,
+        -6,  13,  13,  26,  34,  18,  10,   4,
         -4,   5,  19,  50,  37,  37,   7,  -2,
        -16,  37,  43,  40,  35,  50,  37,  -2,
        -26,  16, -18, -13,  30,  59,  18, -47,
@@ -161,7 +166,7 @@ namespace
         13,   9,  -3,  -7,  -7,  -8,   3,  -1,
         32,  24,  13,   5,  -2,   4,  17,  17,
         94, 100,  85,  67,  56,  53,  82,  84,
-       178, 173, 158, 134, 147, 132, 165, 187,
+       178, 173, 158, 200, 200, 132, 165, 187,
          0,   0,   0,   0,   0,   0,   0,   0
     },
     // KNIGHT
@@ -220,6 +225,12 @@ namespace
        -74, -35, -18, -18, -11,  15,   4, -17
     }
     };
+    
+   
+   
+    
+    
+    
 } // namespace anonymous
 
 
@@ -277,22 +288,25 @@ namespace Engine
 
                 int val = static_cast<int>(weight * eg + (1 - weight) * mg);
 
+                if constexpr (USE_MOBILITY_EVAL)
+                {
+                    // Mobility
+                    if (pt == KNIGHT) 
+                        val += popcount(Bitboards::GetKnightAttacks(Square(sq))) * knight_mobility_bonus;
+
+                    else if (pt == BISHOP)
+                        val += popcount(Bitboards::GetBishopAttacks(Square(sq), pos.GetOccupancy())) * bishop_mobility_bonus;
+
+                    else if (pt == ROOK)
+                        val += popcount(Bitboards::GetRookAttacks(Square(sq), pos.GetOccupancy())) * rook_mobility_bonus;
+
+                    else if (pt == QUEEN && weight > 0.5)
+                        val += popcount(Bitboards::GetBishopAttacks(Square(sq), pos.GetOccupancy()) | Bitboards::GetRookAttacks(Square(sq), pos.GetOccupancy())) * queen_mobility_bonus;
+                }
                 
-                /*
-                // Mobility
-                if (pt == KNIGHT) 
-                    val += popcount(Bitboards::GetKnightAttacks(Square(sq))) * knight_mobility_bonus;
+                
 
-                else if (pt == BISHOP)
-                    val += popcount(Bitboards::GetBishopAttacks(Square(sq), pos.GetOccupancy())) * bishop_mobility_bonus;
-
-                else if (pt == ROOK)
-                    val += popcount(Bitboards::GetRookAttacks(Square(sq), pos.GetOccupancy())) * rook_mobility_bonus;
-
-                else if (pt == QUEEN && weight > 0.5)
-                    val += popcount(Bitboards::GetBishopAttacks(Square(sq), pos.GetOccupancy()) | Bitboards::GetRookAttacks(Square(sq), pos.GetOccupancy())) * queen_mobility_bonus;
-
-                */
+                
                 if (white) score += val;
                 else       score -= val;
                 
@@ -319,24 +333,42 @@ namespace Engine
         // Pawn structure
         for (int file = 0; file < 8; ++file)
         {
-            static constexpr int double_pawn_deduction[] = {-30, -2, -7, -21, -16, -19, -3, -32};
+            static constexpr int double_pawn_deduction[]   = {-30, -2, -7, -21, -16, -19, -3, -32};
+            static constexpr int isolated_pawn_deduction[] = {-7, -12, -20, -24, -30, -15, -9, -5};
 
             Bitboard white_pawns = pos.GetBitboard(W_PAWN);
             Bitboard black_pawns = pos.GetBitboard(B_PAWN);
 
+            int white_pawn_popcnt = popcount(Bitboards::files[file] & white_pawns);
+            int black_pawn_popcnt = popcount(Bitboards::files[file] & black_pawns);
+
             // Double Pawns
-            if (popcount(Bitboards::files[file] & white_pawns) >= 2)
+            if (white_pawn_popcnt >= 2)
             {
                 score += double_pawn_deduction[file];
 
-                // TODO: Isolated Pawns
             }
 
-            if (popcount(Bitboards::files[file] & black_pawns) >= 2)
+            if (black_pawn_popcnt >= 2)
             {
                 score -= double_pawn_deduction[file];
 
-                // TODO: Isolated Pawns
+            }
+
+            // Isolated Pawn
+            Bitboard adjacent_files = ((file != 0) ? Bitboards::files[file - 1]: 0) | ((file != 7) ? Bitboards::files[file + 1]: 0);
+            
+
+            // White
+            if (!(adjacent_files & white_pawns) && white_pawn_popcnt)
+            {
+                score += isolated_pawn_deduction[file];
+            }
+
+            // Black
+            if (!(adjacent_files & black_pawns) && black_pawn_popcnt)
+            {
+                score -= isolated_pawn_deduction[file];
             }
         }
 
@@ -397,9 +429,17 @@ namespace Engine
             return false;
         }
 
-        int ScoreMove (const Position& pos, Move move, Move pv, Move killer_a, Move killer_b, Move tt_move) {
-            if (move == pv)      return 10'000'000;
-            if (move == tt_move) return 9'999'999;
+        int ScoreMove (const Position& pos, Move move, Move* pv, int len, Move killer_a, Move killer_b, Move tt_move) {
+
+            if (pv != nullptr && len != 0) 
+            {
+                if (move == pv[len - 1])   return 10'000'000;
+                for (int i = len - 2; i > 0; --i) {
+                    if (move == pv[i]) return 9'999'900 + i;
+                } 
+            }
+                
+            if (move == tt_move) return 9'000'000;
 
             Piece captured = pos.GetPiece(GetTo(move));
             Piece moved    = pos.GetPiece(GetFrom(move));
@@ -432,11 +472,11 @@ namespace Engine
 
         }
 
-        Move PickBestLookingMove (const Position& pos, MoveList& list, Move* current, Move pv, Move killer_a, Move killer_b, Move tt_move = 0) {
+        Move PickBestLookingMove (const Position& pos, MoveList& list, Move* current, Move* pv, int len, Move killer_a, Move killer_b, Move tt_move = 0) {
             Move* best = current;
 
             for (Move* m = current + 1; m != list.end(); m++) {
-                if (ScoreMove(pos, *m, pv, killer_a, killer_b, tt_move) > ScoreMove(pos, *best, pv, killer_a, killer_b, tt_move)) {
+                if (ScoreMove(pos, *m, pv, len, killer_a, killer_b, tt_move) > ScoreMove(pos, *best, pv, len, killer_a, killer_b, tt_move)) {
                     best = m;
                 }
             }
@@ -474,9 +514,16 @@ namespace Engine
         int standpat = Evaluate(pos);
 
         // Position is too good
-        if (standpat >= beta) return beta;
+        if (standpat >= beta) return standpat;
+
+
+        if (standpat < alpha - 900)
+        {
+            return alpha;
+        }
 
         alpha = std::max(alpha, standpat);
+
 
         bool in_check = pos.IsInCheck();
         Color side_moving = pos.SideToMove();
@@ -516,7 +563,7 @@ namespace Engine
     }
 
     // Negamax Search where the score is for the current side to move
-    int Search (Position& pos, int depth, int alpha, int beta, bool can_null_prune) 
+    int Search (Position& pos, int depth, int alpha, int beta, bool can_null_prune, bool can_reduction) 
     {
         search_info.nodes++;
 
@@ -525,7 +572,9 @@ namespace Engine
         }
 
         if (depth <= 0) {
-            return QSearch(pos, 32, alpha, beta);
+            if constexpr (USE_QSEARCH)
+                return QSearch(pos, 32, alpha, beta);
+            return Evaluate(pos);
         }
 
         if (pos.GetRuleFifty() == 100) {
@@ -540,35 +589,36 @@ namespace Engine
         int plies_from_root = search_info.depth - depth;
         Color side_moving = pos.SideToMove();
 
+        
         TranspositionEntry* entry = tt.Probe(pos.Hash());
         Move tt_move = 0;
 
         int static_eval;
 
-        if (entry != nullptr && entry->key == pos.Hash() && entry->depth >= depth && entry->flag != TTFlag::NONE) 
+        if (
+            entry && // Might be null
+            pos.Hash() == entry->key // Check full 64 bit key, collision
+        )
         {
             tt_move = entry->best_move;
 
-            const int tt_score = entry->eval;
+            if (entry->depth >= depth)
+            {
+                int score = entry->eval;
 
-            // Un-adjust mate scores from TT, since we store as MATE_EVAL
-            // if (tt_score > MAX_CP)  tt_score -= plies_from_root;
-            // if (tt_score < -MAX_CP) tt_score += plies_from_root;
+                if (entry->flag == TTFlag::EXACT)
+                    return score;
 
-            if (entry->flag == TTFlag::EXACT)      return tt_score;
-            if (entry->flag == TTFlag::LOWERBOUND) alpha = std::max<int>(alpha, tt_score);
-            if (entry->flag == TTFlag::UPPERBOUND) beta  = std::min<int>(beta, tt_score);
+                if (entry->flag == TTFlag::LOWERBOUND && score >= beta)
+                    return score;
 
-            static_eval = tt_score;
-
-            
-        } else
-        {
-            static_eval = Evaluate(pos);
+                if (entry->flag == TTFlag::UPPERBOUND && score <= alpha)
+                    return score;
+            }
         }
         
+        static_eval = Evaluate(pos);
         
-
         
         
 
@@ -584,11 +634,19 @@ namespace Engine
         bool in_check = pos.IsInCheck();
 
         
+        
+        
+        // Do not use null prune when:
+        // Cannot null prune (being called during null prunee)
+        // In Check (We can't skip turn in check)
+        // Depth is less than 3 (there is no need to do null prune when there is barely any depth left)
+        // When endgame weight is high (High chance of zugswang, where skipping your turn would actually be better than playing a move)
+
         if (can_null_prune && !in_check && depth > 3 && EGWeight(pos) < 0.67) 
         {
             pos.MakeMove(0);
 
-            int null_score = -Search(pos, depth - 3, -beta, -beta + 1, false);
+            int null_score = -Search(pos, depth - 3, -beta, -beta + 1, false, true);
 
             pos.UndoMove();
 
@@ -597,16 +655,12 @@ namespace Engine
             }
         }
         
-        // Do not use null prune when:
-        // Cannot null prune (being called during null prunee)
-        // In Check (We can't skip turn in check)
-        // Depth is less than 3 (there is no need to do null prune when there is barely any depth left)
-        // When endgame weight is high (High chance of zugswang, where skipping your turn would actually be better than playing a move)
+        
         
         
         for (Move* m = moves.begin(); m != moves.end(); ++m) 
         {
-            PickBestLookingMove(pos, moves, m, 0, killers[plies_from_root][0], killers[plies_from_root][1], tt_move);
+            PickBestLookingMove(pos, moves, m, 0, 0, killers[plies_from_root][0], killers[plies_from_root][1], tt_move);
             
             Move move = *m;
             Piece captured = pos.GetPiece(GetTo(move));
@@ -623,14 +677,16 @@ namespace Engine
                 continue;
             }
 
+            
             bool is_noisy = GetFlag(move) >= NPROMO || // Promotion
                             pos.GetPiece(GetTo(move)) != NO_PIECE || // Capture
                             pos.IsInCheck() || // Gives Check
-                            GetFlag(move) == EN_PASSANT; // Always search en passant because why not
+                            GetFlag(move) == EN_PASSANT; // Always search en passant because why not*/
 
             
-             // Futility Pruning
-            if (depth <= 3 && !is_noisy && !in_check)
+            
+            // Futility Pruning
+            if (depth <= 2 && !is_noisy && !in_check)
             {
                 int margin = 100 * depth;
 
@@ -643,6 +699,8 @@ namespace Engine
                 }
                     
             }
+            
+             
 
             // Late Move Pruning
             // Basically we put our faith in move ordering to put all the bad moves last
@@ -652,37 +710,34 @@ namespace Engine
                 pos.UndoMove();
                 continue;
             }
-                
+            
 
             int score;
-            
-           
-
-
-
 
             
             // Late Move Reduction
-            if (legal_moves > 3 && depth >= 3 && !in_check && !is_noisy) 
+            if (legal_moves > 3 && depth > 4 && !in_check && !is_noisy && can_reduction) 
             {
                 // Search at a reduced depth
-                int reduction = 1;
-                score = -Search(pos, depth - 1 - reduction, -alpha - 1, -alpha, true);
+                int reduction = 1 + (legal_moves > 6) + (depth > 6);
+                score = -Search(pos, depth - 1 - reduction, -alpha - 1, -alpha, true, false);
 
                 // If move is good (raises alpha) research at full depth
                 if (score > alpha && score < beta) 
                 {
-                    score = -Search(pos, depth - 1, -beta, -alpha, true);
+                    score = -Search(pos, depth - 1, -beta, -alpha, true, true);
                 }
             } 
             
             else 
             {
                 
-                score = -Search(pos, depth - 1, -beta, -alpha, true);
+                score = -Search(pos, depth - 1, -beta, -alpha, true, true);
                 
             }
 
+            
+            
             
 
             pos.UndoMove();
@@ -698,7 +753,8 @@ namespace Engine
 
             if (captured == NO_PIECE && score + 100 < alpha) {
                 history[side_moving][GetFrom(move)][GetTo(move)] -= depth * depth;
-            }
+            } 
+            
 
             if (score > alpha) 
             {
@@ -723,10 +779,13 @@ namespace Engine
                 return 0;
             }
 
-            if (search_info.nodes % 10'000'000 == 0)
+            
+            if (search_info.nodes % 1'000'000 == 0)
             {
                 DecayHistoryTable();
             }
+        
+            
 
             
         }
@@ -776,7 +835,7 @@ namespace Engine
 
 
 
-    SearchResults GetBestMove(Position& pos, int depth, Move pv, int alpha, int beta) 
+    SearchResults GetBestMove(Position& pos, int depth, Move* pv, int alpha, int beta) 
     {
         Move best_move = 0;
         int best_score = -INF;
@@ -793,7 +852,7 @@ namespace Engine
         for (Move* m = moves.begin(); m != moves.end(); ++m) 
         {
 
-            PickBestLookingMove(pos, moves, m, pv, 0, 0);
+            PickBestLookingMove(pos, moves, m, pv, depth - 1, 0, 0);
 
             Move move = *m;
 
@@ -804,7 +863,7 @@ namespace Engine
                 continue;
             }
 
-            int score = -Search(pos, depth - 1, -beta, -alpha, true);
+            int score = -Search(pos, depth - 1, -beta, -alpha, true, true);
 
 
 
@@ -830,7 +889,7 @@ namespace Engine
         search_info.Reset();
         ResetKillers();
 
-        // tt.Clear();
+        tt.Clear();
 
         search_info.start_time = steady_clock::now();
         search_info.max_time_ms = movetime;
@@ -840,36 +899,51 @@ namespace Engine
         Move best_move = 0;
         int eval = 0;
 
-        int aspiration_window = 50;
+        int aspiration_window = 46;
         
+        Move pv_table[depth + 1];
 
         for (int current_depth = 1; current_depth <= depth; ++current_depth) 
         {
 
             if (search_info.stop.load(std::memory_order_relaxed)) break;
 
-
             SearchResults result;
 
-            int window = aspiration_window;
+            if constexpr (!USE_ASPIRATION)
+                result = GetBestMove(position, current_depth, pv_table, -INF, INF);
 
-            while (true)
-            {
+            else {
+                int window = aspiration_window;
+
+                // Aspiration Window
                 int alpha = eval - window;
                 int beta  = eval + window;
-
-                result = GetBestMove(position, current_depth, best_move, alpha, beta);
-
-                if (result.score <= alpha)
+                
+                while (true)
                 {
-                    window *= 2;
+                    
+                    result = GetBestMove(position, current_depth, pv_table, alpha, beta);
+
+                    if (result.score <= alpha)
+                    {
+                        // Fail Low: Winden lower bounds
+                        alpha -= window;
+                        window *= 2;
+                    }
+                    else if (result.score >= beta)
+                    {
+
+                        // Fail High
+                        beta += window;
+                        window *= 2;
+                    }
+                    else break;
                 }
-                else if (result.score >= beta)
-                {
-                    window *= 2;
-                }
-                else break;
             }
+            
+            
+            
 
             
 
@@ -878,6 +952,8 @@ namespace Engine
             {
                 eval = result.score;
                 best_move = result.best_move;
+
+                pv_table[current_depth] = best_move;
             } else break;
 
             if (std::abs(eval) > MAX_CP) 
@@ -887,16 +963,16 @@ namespace Engine
             auto elapsed = duration_cast<milliseconds> (steady_clock::now() - search_info.start_time).count();
 
             std::vector<Move> pv = {best_move};
-            pv.reserve(depth - 2);
+            pv.reserve(depth);
 
             position.MakeMove(best_move);
 
             int i = 0;
-            for (i = 0; i < depth + 2; ++i) 
+            for (i = 0; i < current_depth; ++i) 
             {
                 TranspositionEntry* entry = tt.Probe(position.Hash());
 
-                if (entry != nullptr && position.IsLegal(entry->best_move)) 
+                if (entry != nullptr && position.IsLegal(entry->best_move) && entry->depth > 2) 
                 {
                     position.MakeMove(entry->best_move);
                     pv.push_back(entry->best_move);

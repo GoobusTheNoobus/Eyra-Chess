@@ -16,7 +16,7 @@ int main ()
     Bitboards::Init();
 
     std::cout << ENGINE_NAME << ENGINE_VERSION << " by " << ENGINE_AUTHOR << std::endl;
-
+    
     
 
 

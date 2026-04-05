@@ -136,7 +136,7 @@ namespace Eyra
         std::istringstream iss(command);
         std::string token;
 
-        int depth = 32;
+        int depth = 32; // Max depth if invalid
         int movetime = 0;
         int movestogo = 40;
 
@@ -186,16 +186,7 @@ namespace Eyra
             int our_time = Engine::position.SideToMove() == WHITE ? wtime: btime;
             int our_inc  = Engine::position.SideToMove() == WHITE ? winc: binc;
 
-            
-
-            if (our_time > 100) 
-            {
-                
-
-                time_limit = std::min(our_time - 100, our_time / (movestogo + 10));
-                time_limit = std::max(50, time_limit);
-                time_limit += our_inc;
-            }
+            time_limit = std::min(our_time / 20 + our_inc / 2, our_time);
         }
 
         // Launch Search in search thread while main thread stays in the loop

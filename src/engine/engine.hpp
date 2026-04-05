@@ -121,13 +121,13 @@ namespace Engine
     int Evaluate (Position& pos);
     float EGWeight (Position& pos);
 
-    int Search (Position& pos, int depth, int alpha, int beta, bool can_null_prune);
+    int Search (Position& pos, int depth, int alpha, int beta, bool can_null_prune, bool can_reduction);
     int QSearch (Position& pos, int depth, int alpha, int beta);
 
     void PerftDivide (int depth);
     int Perft(int depth);
 
-    SearchResults GetBestMove (Position& pos, int depth, Move pv, int alpha, int beta);
+    SearchResults GetBestMove (Position& pos, int depth, Move* pv, int alpha, int beta);
     void Go (int depth_limit, int movetime);
 
 
